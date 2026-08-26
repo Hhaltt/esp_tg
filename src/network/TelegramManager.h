@@ -11,8 +11,7 @@ public:
 
     bool sendMessage(
         const String& chatId,
-        const String& text,
-        bool silent = false
+        const String& text
     );
 
 private:
