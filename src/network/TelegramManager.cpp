@@ -18,7 +18,7 @@ void TelegramManager::begin()
     telegramClient.setInsecure();
     String token = config.getBotToken();
     token.trim();
-    if (token.length()) bot._token = token;
+    if (token.length()) bot = UniversalTelegramBot(token, telegramClient);
     Serial.println("[TG] Telegram initialized");
 }
 
@@ -29,14 +29,12 @@ void TelegramManager::update()
         started = false;
         return;
     }
-
     if (!started)
     {
         started = true;
         Serial.println("[TG] Telegram ready");
         sendStartupMessage();
     }
-
     if (millis() - lastCheck >= TELEGRAM_CHECK_INTERVAL)
     {
         lastCheck = millis();
@@ -47,23 +45,11 @@ void TelegramManager::update()
 void TelegramManager::sendStartupMessage()
 {
     if (startupMessageSent || !config.isStartupMessageEnabled()) return;
-
     String message = config.getStartupMessage();
     message.trim();
-    if (!message.length()) return;
-
-    if (!config.getChatCount())
-    {
-        Serial.println("[TG] No configured chats for startup message");
-        return;
-    }
-
+    if (!message.length() || !config.getChatCount()) return;
     TelegramChatConfig chat = config.getChat(0);
-    if (sendMessage(chat.id, message))
-    {
-        startupMessageSent = true;
-        Serial.println("[TG] Startup message sent");
-    }
+    if (sendMessage(chat.id, message)) startupMessageSent = true;
 }
 
 void TelegramManager::checkMessages()
@@ -81,44 +67,20 @@ void TelegramManager::handleMessage(int index)
     statistics.onTelegramMessageReceived();
     String chatId = bot.messages[index].chat_id;
     String text = bot.messages[index].text;
-
     if (text.startsWith("/"))
     {
         statistics.onCommandReceived();
         handleCommand(chatId, text);
     }
-    else
-    {
-        sendMessage(chatId, "Я поки що розумію тільки команди.\n\nСпробуй /start");
-    }
+    else sendMessage(chatId, "Я поки що розумію тільки команди.\n\nСпробуй /start");
 }
 
 void TelegramManager::handleCommand(const String& chatId, const String& command)
 {
-    if (command == "/start")
-    {
-        statistics.onCommandExecuted();
-        sendStartMessage(chatId);
-        return;
-    }
-    if (command == "/about")
-    {
-        statistics.onCommandExecuted();
-        sendAbout(chatId);
-        return;
-    }
-    if (command == "/ping")
-    {
-        statistics.onCommandExecuted();
-        sendMessage(chatId, "🏓 Pong!");
-        return;
-    }
-    if (command == "/time")
-    {
-        statistics.onCommandExecuted();
-        sendMessage(chatId, "🕐 " + timeManager.getDateTimeString());
-        return;
-    }
+    if (command == "/start") { statistics.onCommandExecuted(); sendStartMessage(chatId); return; }
+    if (command == "/about") { statistics.onCommandExecuted(); sendAbout(chatId); return; }
+    if (command == "/ping") { statistics.onCommandExecuted(); sendMessage(chatId, "🏓 Pong!"); return; }
+    if (command == "/time") { statistics.onCommandExecuted(); sendMessage(chatId, "🕐 " + timeManager.getDateTimeString()); return; }
     if (command == "/status")
     {
         statistics.onCommandExecuted();
@@ -127,18 +89,15 @@ void TelegramManager::handleCommand(const String& chatId, const String& command)
         m += "🔗 Ethernet: " + String(ethernet.isConnected() ? "Online" : "Offline") + "\n";
         m += "⚡ " + String(ethernet.getLinkSpeed()) + " Mbps\n";
         m += "⏱ Uptime: " + statistics.getCurrentUptimeString();
-        sendMessage(chatId, m);
-        return;
+        sendMessage(chatId, m); return;
     }
-
     statistics.onCommandError();
     sendMessage(chatId, "❓ Невідома команда:\n" + command + "\n\nСпробуй /start");
 }
 
 void TelegramManager::sendStartMessage(const String& chatId)
 {
-    String m = "🤖 " + config.getDeviceName() + "\n\n";
-    m += "Я запущений і працюю 😎\n\n";
+    String m = "🤖 " + config.getDeviceName() + "\n\nЯ запущений і працюю 😎\n\n";
     m += "📊 /about - про себе\n📡 /status - статус\n🏓 /ping - перевірка\n🕐 /time - час";
     sendMessage(chatId, m);
 }
@@ -161,15 +120,8 @@ bool TelegramManager::sendMessage(const String& chatId, const String& text, bool
     if (!chatId.length()) return false;
     bool result = bot.sendMessage(chatId, text, "HTML", silent);
     if (result) statistics.onTelegramMessageSent();
-    else
-    {
-        statistics.onError();
-        Serial.println("[TG] Failed to send message");
-    }
+    else { statistics.onError(); Serial.println("[TG] Failed to send message"); }
     return result;
 }
 
-bool TelegramManager::isStarted()
-{
-    return started;
-}
+bool TelegramManager::isStarted() { return started; }
