@@ -1,5 +1,7 @@
 #include <Arduino.h>
 
+#include <esp_task_wdt.h>
+#include <esp_idf_version.h>
 
 #include "core/Config.h"
 #include "core/Statistics.h"
@@ -16,190 +18,105 @@
 #include "storage/SDCardManager.h"
 #include "storage/StorageManager.h"
 
-
-// ============================================================
-// STATISTICS CHECKPOINT
-// ============================================================
-
 unsigned long lastStatisticsSave = 0;
 
+static const uint32_t WATCHDOG_TIMEOUT_SECONDS = 15;
 
-// ============================================================
-// SETUP
-// ============================================================
+static void beginWatchdog()
+{
+#if ESP_IDF_VERSION_MAJOR >= 5
+    esp_task_wdt_config_t configWdt = {};
+    configWdt.timeout_ms = WATCHDOG_TIMEOUT_SECONDS * 1000;
+    configWdt.idle_core_mask = 0;
+    configWdt.trigger_panic = true;
+
+    esp_err_t result = esp_task_wdt_init(&configWdt);
+#else
+    esp_err_t result = esp_task_wdt_init(WATCHDOG_TIMEOUT_SECONDS, true);
+#endif
+
+    if (result == ESP_OK)
+        Serial.println("[WDT] Task watchdog initialized");
+    else if (result == ESP_ERR_INVALID_STATE)
+        Serial.println("[WDT] Task watchdog already initialized");
+    else
+        Serial.printf("[WDT] Init error: %d\n", (int)result);
+
+    result = esp_task_wdt_add(NULL);
+
+    if (result == ESP_OK)
+        Serial.printf("[WDT] Main loop watched, timeout: %lu s\n", (unsigned long)WATCHDOG_TIMEOUT_SECONDS);
+    else if (result != ESP_ERR_INVALID_STATE)
+        Serial.printf("[WDT] Add task error: %d\n", (int)result);
+}
 
 void setup()
 {
     Serial.begin(115200);
-
     delay(2000);
 
-
     Serial.println();
     Serial.println();
+    Serial.println("========================================");
+    Serial.println(DEVICE_NAME);
+    Serial.println("========================================");
 
-    Serial.println(
-        "========================================"
-    );
-
-    Serial.println(
-        DEVICE_NAME
-    );
-
-    Serial.println(
-        "========================================"
-    );
-
-
-    // --------------------------------------------------------
-    // Statistics
-    // --------------------------------------------------------
+    beginWatchdog();
 
     statistics.begin();
-
-
-    // --------------------------------------------------------
-    // Ethernet
-    // --------------------------------------------------------
-
     ethernet.begin();
-
-
-    // --------------------------------------------------------
-    // SD CARD
-    // --------------------------------------------------------
-
     sdCard.begin();
-
-
-    // --------------------------------------------------------
-    // STORAGE
-    // --------------------------------------------------------
 
     if (storage.begin())
     {
         StatisticsData loadedData;
-
-
-        storage.loadStatistics(
-            loadedData
-        );
-
-
-        statistics.load(
-            loadedData
-        );
-
-
-        // Цей запуск вже рахується
-
+        storage.loadStatistics(loadedData);
+        statistics.load(loadedData);
         statistics.onBoot();
-
-
-        // Одразу зберігаємо boot count.
-        //
-        // Це всього один запис на запуск.
-
-        storage.saveStatistics(
-            statistics.getData()
-        );
+        storage.saveStatistics(statistics.getData());
     }
     else
     {
-        Serial.println(
-            "[SYSTEM] Storage unavailable"
-        );
-
-        // Emily продовжує працювати
-        // навіть без SD.
+        Serial.println("[SYSTEM] Storage unavailable");
     }
-    // --------------------------------------------------------
-    // CONFIG
-    // --------------------------------------------------------
 
     config.begin();
-    // --------------------------------------------------------
-    // reminder
-    // --------------------------------------------------------
-
     reminderManager.begin();
-
-
-    // --------------------------------------------------------
-    // Time
-    // --------------------------------------------------------
-
     timeManager.begin();
-
-
-    // --------------------------------------------------------
-    // Telegram
-    // --------------------------------------------------------
-
     telegram.begin();
-    // --------------------------------------------------------
-    // WEB
-    // --------------------------------------------------------
-
     webServerManager.begin();
-
-    // --------------------------------------------------------
-    // GPIO MONITOR
-    // --------------------------------------------------------
-
     gpioMonitor.begin();
 
-    Serial.println(
-        "[SYSTEM] Initialization complete"
-    );
+    Serial.println("[SYSTEM] Initialization complete");
+    esp_task_wdt_reset();
 }
-
-
-// ============================================================
-// LOOP
-// ============================================================
 
 void loop()
 {
+    esp_task_wdt_reset();
+
     ethernet.update();
+    esp_task_wdt_reset();
 
     timeManager.update();
-
     telegram.update();
+    esp_task_wdt_reset();
 
     gpioMonitor.update();
-
     webServerManager.update();
-
     statistics.update();
-
     reminderManager.update();
-
-    // --------------------------------------------------------
-    // STATISTICS CHECKPOINT
-    // --------------------------------------------------------
 
     if (
         sdCard.isAvailable()
-        &&
-        millis() - lastStatisticsSave
-        >= STATISTICS_SAVE_INTERVAL
+        && millis() - lastStatisticsSave >= STATISTICS_SAVE_INTERVAL
     )
     {
-        lastStatisticsSave =
-            millis();
-
-
-        Serial.println(
-            "[SYSTEM] Statistics checkpoint"
-        );
-
-
-        storage.saveStatistics(
-            statistics.getData()
-        );
+        lastStatisticsSave = millis();
+        Serial.println("[SYSTEM] Statistics checkpoint");
+        storage.saveStatistics(statistics.getData());
     }
 
-
+    esp_task_wdt_reset();
     delay(1);
 }
