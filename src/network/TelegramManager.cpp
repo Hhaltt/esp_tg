@@ -10,51 +10,483 @@
 #include "../services/TimeManager.h"
 #include "EthernetManager.h"
 
+
 WiFiClientSecure telegramClient;
-UniversalTelegramBot bot(BOT_TOKEN, telegramClient);
+
+UniversalTelegramBot bot(
+    BOT_TOKEN,
+    telegramClient
+);
+
 TelegramManager telegram;
+
+
+// ============================================================
+// BEGIN
+// ============================================================
 
 void TelegramManager::begin()
 {
     telegramClient.setInsecure();
-    String token = config.getBotToken(); token.trim();
-    if (token.length()) bot.updateToken(token);
+
+    String token = config.getBotToken();
+    token.trim();
+
+    if (token.length())
+    {
+        bot.updateToken(token);
+    }
+
     Serial.println("[TG] Telegram initialized");
 }
 
+
+// ============================================================
+// UPDATE
+// ============================================================
+
 void TelegramManager::update()
 {
-    if (!ethernet.isConnected()) { started=false; return; }
-    if (!started) { started=true; Serial.println("[TG] Telegram ready"); sendStartupMessage(); }
-    if (millis()-lastCheck>=TELEGRAM_CHECK_INTERVAL) { lastCheck=millis(); checkMessages(); }
+    if (!ethernet.isConnected())
+    {
+        started = false;
+        return;
+    }
+
+    if (!started)
+    {
+        started = true;
+
+        Serial.println("[TG] Telegram ready");
+
+        sendStartupMessage();
+    }
+
+    if (millis() - lastCheck >= TELEGRAM_CHECK_INTERVAL)
+    {
+        lastCheck = millis();
+
+        checkMessages();
+    }
 }
+
+
+// ============================================================
+// STARTUP MESSAGE
+// ============================================================
 
 void TelegramManager::sendStartupMessage()
 {
-    if (startupMessageSent || !config.isStartupMessageEnabled()) return;
-    String message=config.getStartupMessage(); message.trim();
-    if (!message.length() || !config.getChatCount()) return;
-    if (sendMessage(config.getChat(0).id,message)) startupMessageSent=true;
+    if (
+        startupMessageSent ||
+        !config.isStartupMessageEnabled()
+    )
+    {
+        return;
+    }
+
+    String message = config.getStartupMessage();
+    message.trim();
+
+    if (
+        !message.length() ||
+        !config.getChatCount()
+    )
+    {
+        return;
+    }
+
+    if (
+        sendMessage(
+            config.getChat(0).id,
+            message
+        )
+    )
+    {
+        startupMessageSent = true;
+    }
 }
 
-void TelegramManager::checkMessages(){int count=bot.getUpdates(bot.last_message_received+1);while(count>0){for(int i=0;i<count;i++)handleMessage(i);count=bot.getUpdates(bot.last_message_received+1);}}
-void TelegramManager::handleMessage(int i){statistics.onTelegramMessageReceived();String id=bot.messages[i].chat_id,text=bot.messages[i].text;if(text.startsWith("/")){statistics.onCommandReceived();handleCommand(id,text);}else sendMessage(id,"Я поки що розумію тільки команди.\n\nСпробуй /start");}
-void TelegramManager::handleCommand(const String& id,const String& c){if(c=="/start"){statistics.onCommandExecuted();sendStartMessage(id);return;}if(c=="/about"){statistics.onCommandExecuted();sendAbout(id);return;}if(c=="/ping"){statistics.onCommandExecuted();sendMessage(id,"🏓 Pong!");return;}if(c=="/time"){statistics.onCommandExecuted();sendMessage(id,"🕐 "+timeManager.getDateTimeString());return;}if(c=="/status"){statistics.onCommandExecuted();String m="🤖 "+config.getDeviceName()+"\n\n🟢 Online\n🌐 IP: "+ethernet.getIP()+"\n🔗 Ethernet: "+String(ethernet.isConnected()?"Online":"Offline")+"\n⚡ "+String(ethernet.getLinkSpeed())+" Mbps\n⏱ Uptime: "+statistics.getCurrentUptimeString();sendMessage(id,m);return;}statistics.onCommandError();sendMessage(id,"❓ Невідома команда:\n"+c+"\n\nСпробуй /start");}
-void TelegramManager::sendStartMessage(const String& id){sendMessage(id,"🤖 "+config.getDeviceName()+"\n\nЯ запущений і працюю 😎\n\n📊 /about - про себе\n📡 /status - статус\n🏓 /ping - перевірка\n🕐 /time - час");}
-void TelegramManager::sendAbout(const String& id){String m="🤖 <b>"+config.getDeviceName()+"</b>\n\n🟢 <b>Стан:</b> Online\n";m+="⏱ <b>Поточний uptime:</b> "+statistics.getCurrentUptimeString()+"\n";m+="🕰 <b>Total uptime:</b> "+statistics.getTotalUptimeString()+"\n";m+="🔄 <b>Перезапусків:</b> "+String(statistics.getBootCount())+"\n\n";m+="💬 <b>Повідомлень:</b>\n📥 Отримано: "+String(statistics.getMessagesReceived())+"\n📤 Надіслано: "+String(statistics.getMessagesSent());sendMessage(id,m);}
 
-bool TelegramManager::sendMessage(const String& chatId,const String& text,bool silent)
+// ============================================================
+// CHECK MESSAGES
+// ============================================================
+
+void TelegramManager::checkMessages()
 {
-    if(!chatId.length()) return false;
+    int count =
+        bot.getUpdates(
+            bot.last_message_received + 1
+        );
+
+    while (count > 0)
+    {
+        for (int i = 0; i < count; i++)
+        {
+            handleMessage(i);
+        }
+
+        count =
+            bot.getUpdates(
+                bot.last_message_received + 1
+            );
+    }
+}
+
+
+// ============================================================
+// HANDLE MESSAGE
+// ============================================================
+
+void TelegramManager::handleMessage(
+    int messageIndex
+)
+{
+    statistics.onTelegramMessageReceived();
+
+    String chatId =
+        bot.messages[messageIndex].chat_id;
+
+    String text =
+        bot.messages[messageIndex].text;
+
+    if (text.startsWith("/"))
+    {
+        statistics.onCommandReceived();
+
+        handleCommand(
+            chatId,
+            text
+        );
+    }
+    else
+    {
+        sendMessage(
+            chatId,
+            "Я поки що розумію тільки команди.\n\n"
+            "Спробуй /start"
+        );
+    }
+}
+
+
+// ============================================================
+// COMMANDS
+// ============================================================
+
+void TelegramManager::handleCommand(
+    const String& chatId,
+    const String& command
+)
+{
+    if (command == "/start")
+    {
+        statistics.onCommandExecuted();
+
+        sendStartMessage(chatId);
+
+        return;
+    }
+
+    if (command == "/about")
+    {
+        statistics.onCommandExecuted();
+
+        sendAbout(chatId);
+
+        return;
+    }
+
+    if (command == "/ping")
+    {
+        statistics.onCommandExecuted();
+
+        sendMessage(
+            chatId,
+            "🏓 Pong!"
+        );
+
+        return;
+    }
+
+    if (command == "/time")
+    {
+        statistics.onCommandExecuted();
+
+        sendMessage(
+            chatId,
+            "🕐 " +
+            timeManager.getDateTimeString()
+        );
+
+        return;
+    }
+
+    if (command == "/status")
+    {
+        statistics.onCommandExecuted();
+
+        String message;
+
+        message += "🤖 ";
+        message += config.getDeviceName();
+
+        message += "\n\n🟢 Online\n";
+
+        message += "🌐 IP: ";
+        message += ethernet.getIP();
+
+        message += "\n🔗 Ethernet: ";
+        message +=
+            ethernet.isConnected()
+                ? "Online"
+                : "Offline";
+
+        message += "\n⚡ ";
+        message += String(
+            ethernet.getLinkSpeed()
+        );
+        message += " Mbps\n";
+
+        message += "⏱ Uptime: ";
+        message +=
+            statistics.getCurrentUptimeString();
+
+        sendMessage(
+            chatId,
+            message
+        );
+
+        return;
+    }
+
+    statistics.onCommandError();
+
+    sendMessage(
+        chatId,
+        "❓ Невідома команда:\n" +
+        command +
+        "\n\nСпробуй /start"
+    );
+}
+
+
+// ============================================================
+// START MESSAGE
+// ============================================================
+
+void TelegramManager::sendStartMessage(
+    const String& chatId
+)
+{
+    String message;
+
+    message += "🤖 ";
+    message += config.getDeviceName();
+
+    message += "\n\n";
+    message += "Я запущений і працюю 😎\n\n";
+
+    message += "📊 /about - про себе\n";
+    message += "📡 /status - статус\n";
+    message += "🏓 /ping - перевірка\n";
+    message += "🕐 /time - час";
+
+    sendMessage(
+        chatId,
+        message
+    );
+}
+
+
+// ============================================================
+// ABOUT
+// ============================================================
+
+void TelegramManager::sendAbout(
+    const String& chatId
+)
+{
+    String message;
+
+    message += "🤖 <b>";
+    message += config.getDeviceName();
+    message += "</b>\n\n";
+
+    message += "🟢 <b>Стан:</b> Online\n";
+
+    // --------------------------------------------------------
+    // Uptime
+    // --------------------------------------------------------
+
+    message += "⏱ <b>Поточний uptime:</b> ";
+    message +=
+        statistics.getCurrentUptimeString();
+
+    message += "\n";
+
+    message += "🕰 <b>Total uptime:</b> ";
+    message +=
+        statistics.getTotalUptimeString();
+
+    message += "\n";
+
+    // --------------------------------------------------------
+    // Boot
+    // --------------------------------------------------------
+
+    message += "🔄 <b>Перезапусків:</b> ";
+    message +=
+        String(
+            statistics.getBootCount()
+        );
+
+    message += "\n\n";
+
+    // --------------------------------------------------------
+    // Messages
+    // --------------------------------------------------------
+
+    message += "💬 <b>Повідомлень:</b>\n";
+
+    message += "📥 Отримано: ";
+    message +=
+        String(
+            statistics.getMessagesReceived()
+        );
+
+    message += "\n";
+
+    message += "📤 Надіслано: ";
+    message +=
+        String(
+            statistics.getMessagesSent()
+        );
+
+    message += "\n\n";
+
+    // --------------------------------------------------------
+    // Commands
+    // --------------------------------------------------------
+
+    message += "⚙️ <b>Команди:</b>\n";
+
+    message += "📥 Отримано: ";
+    message +=
+        String(
+            statistics.getCommandsReceived()
+        );
+
+    message += "\n";
+
+    message += "✅ Виконано: ";
+    message +=
+        String(
+            statistics.getCommandsExecuted()
+        );
+
+    message += "\n";
+
+    message += "❌ Помилок: ";
+    message +=
+        String(
+            statistics.getCommandErrors()
+        );
+
+    message += "\n\n";
+
+    // --------------------------------------------------------
+    // System
+    // --------------------------------------------------------
+
+    message += "💾 <b>Система:</b>\n";
+
+    message += "🧠 Free heap: ";
+    message +=
+        String(
+            ESP.getFreeHeap()
+        );
+
+    message += " bytes\n";
+
+    message += "🌐 IP: ";
+    message += ethernet.getIP();
+
+    message += "\n";
+
+    message += "❗ Помилок: ";
+    message +=
+        String(
+            statistics.getErrors()
+        );
+
+    if (timeManager.isTimeValid())
+    {
+        message += "\n\n🕐 ";
+        message +=
+            timeManager.getDateTimeString();
+    }
+
+    sendMessage(
+        chatId,
+        message
+    );
+}
+
+
+// ============================================================
+// SEND MESSAGE
+// ============================================================
+
+bool TelegramManager::sendMessage(
+    const String& chatId,
+    const String& text,
+    bool silent
+)
+{
+    if (!chatId.length())
+    {
+        return false;
+    }
+
     DynamicJsonDocument payload(2048);
-    payload["chat_id"]=chatId;
-    payload["text"]=text;
-    payload["parse_mode"]="HTML";
-    if(silent) payload["disable_notification"]=true;
-    bool result=bot.sendPostMessage(payload.as<JsonObject>());
-    if(result) statistics.onTelegramMessageSent();
-    else {statistics.onError();Serial.println("[TG] Failed to send message");}
+
+    payload["chat_id"] = chatId;
+    payload["text"] = text;
+    payload["parse_mode"] = "HTML";
+
+    if (silent)
+    {
+        payload["disable_notification"] = true;
+    }
+
+    bool result =
+        bot.sendPostMessage(
+            payload.as<JsonObject>()
+        );
+
+    if (result)
+    {
+        statistics.onTelegramMessageSent();
+    }
+    else
+    {
+        statistics.onError();
+
+        Serial.println(
+            "[TG] Failed to send message"
+        );
+    }
+
     return result;
 }
 
-bool TelegramManager::isStarted(){return started;}
+
+// ============================================================
+// STATUS
+// ============================================================
+
+bool TelegramManager::isStarted()
+{
+    return started;
+}
