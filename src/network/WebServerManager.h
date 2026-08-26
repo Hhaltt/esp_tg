@@ -15,16 +15,22 @@ private:
     void handleRoot();
     void handleSettings();
     void handleSaveSettings();
+
     void handleAddChat();
+    void handleEditChat();
+    void handleUpdateChat();
     void handleDeleteChat();
-    void handleNotFound();
 
     void handleReminders();
     void handleAddReminder();
+    void handleEditReminder();
+    void handleUpdateReminder();
+    void handleCloneReminder();
     void handleDeleteReminder();
     void handleToggleReminder();
 
     void handleHubTelegramSend();
+    void handleNotFound();
 
     String getPageHeader(const String& title);
     String getPageFooter();
