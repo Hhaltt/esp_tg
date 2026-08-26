@@ -1,5 +1,4 @@
 #include "ConfigManager.h"
-
 #include <SD.h>
 #include <ArduinoJson.h>
 #include "../storage/SDCardManager.h"
@@ -8,182 +7,19 @@
 static const char* CONFIG_FILE = "/data/config.json";
 ConfigManager config;
 
-void ConfigManager::clearChats()
-{
-    if (data.chats)
-    {
-        delete[] data.chats;
-        data.chats = nullptr;
-    }
-    data.chatCount = 0;
-}
+void ConfigManager::clearChats(){ if(data.chats){delete[] data.chats;data.chats=nullptr;} data.chatCount=0; }
+bool ConfigManager::addChatInternal(const String& id,const String& name){ if(!id.length()||data.chatCount>=MAX_CHATS)return false; auto* next=new TelegramChatConfig[data.chatCount+1]; for(size_t i=0;i<data.chatCount;i++)next[i]=data.chats[i]; next[data.chatCount]={id,name.length()?name:id}; delete[] data.chats; data.chats=next; data.chatCount++; return true; }
+void ConfigManager::setDefaults(){ clearChats(); data.system.deviceName="Emily"; data.system.timezone="Europe/Kyiv"; data.system.ntpServer=NTP_SERVER_1; data.system.botToken=BOT_TOKEN; data.system.hubApiKey=HUB_API_KEY; data.system.startupMessageEnabled=true; data.system.startupMessage="Emily is online 🤖"; data.weather=WeatherConfig(); data.gpio35={false,"",""}; data.gpio39={false,"",""}; }
+bool ConfigManager::begin(){ if(!sdCard.isAvailable())return false; setDefaults(); if(!load())return false; ready=true; return true; }
 
-bool ConfigManager::addChatInternal(const String& id, const String& name)
-{
-    if (id.length() == 0 || data.chatCount >= MAX_CHATS)
-        return false;
+bool ConfigManager::load(){ if(!SD.exists(CONFIG_FILE))return false; File f=SD.open(CONFIG_FILE,FILE_READ); if(!f)return false; JsonDocument doc; auto err=deserializeJson(doc,f); f.close(); if(err)return false; auto s=doc["system"]; if(s["deviceName"].is<const char*>())data.system.deviceName=s["deviceName"].as<const char*>(); if(s["timezone"].is<const char*>())data.system.timezone=s["timezone"].as<const char*>(); if(s["ntpServer"].is<const char*>())data.system.ntpServer=s["ntpServer"].as<const char*>(); if(s["botToken"].is<const char*>())data.system.botToken=s["botToken"].as<const char*>(); if(s["hubApiKey"].is<const char*>())data.system.hubApiKey=s["hubApiKey"].as<const char*>(); if(!s["startupMessageEnabled"].isNull())data.system.startupMessageEnabled=s["startupMessageEnabled"].as<bool>(); if(s["startupMessage"].is<const char*>())data.system.startupMessage=s["startupMessage"].as<const char*>();
+ auto w=doc["weather"]; if(!w["enabled"].isNull())data.weather.enabled=w["enabled"].as<bool>(); if(w["apiKey"].is<const char*>())data.weather.apiKey=w["apiKey"].as<const char*>(); if(w["city"].is<const char*>())data.weather.city=w["city"].as<const char*>(); if(!w["hour"].isNull())data.weather.hour=w["hour"].as<uint8_t>(); if(!w["minute"].isNull())data.weather.minute=w["minute"].as<uint8_t>();
+ clearChats(); for(JsonObject c: doc["telegram"]["chats"].as<JsonArray>())addChatInternal(String(c["id"]|""),String(c["name"]|"")); if(data.chatCount==0&&strlen(TELEGRAM_CHAT_ID)>0)addChatInternal(TELEGRAM_CHAT_ID,"Default");
+ auto g35=doc["gpio35"]; if(!g35["enabled"].isNull())data.gpio35.enabled=g35["enabled"].as<bool>(); if(g35["highMessage"].is<const char*>())data.gpio35.highMessage=g35["highMessage"].as<const char*>(); if(g35["lowMessage"].is<const char*>())data.gpio35.lowMessage=g35["lowMessage"].as<const char*>(); auto g39=doc["gpio39"]; if(!g39["enabled"].isNull())data.gpio39.enabled=g39["enabled"].as<bool>(); if(g39["highMessage"].is<const char*>())data.gpio39.highMessage=g39["highMessage"].as<const char*>(); if(g39["lowMessage"].is<const char*>())data.gpio39.lowMessage=g39["lowMessage"].as<const char*>(); if(!data.system.deviceName.length())data.system.deviceName="Emily"; if(!data.system.timezone.length())data.system.timezone="Europe/Kyiv"; if(!data.system.ntpServer.length())data.system.ntpServer=NTP_SERVER_1; return true; }
 
-    TelegramChatConfig* next = new TelegramChatConfig[data.chatCount + 1];
-    for (size_t i = 0; i < data.chatCount; i++)
-        next[i] = data.chats[i];
+bool ConfigManager::save(){ if(!sdCard.isAvailable())return false; JsonDocument d; auto s=d["system"]; s["deviceName"]=data.system.deviceName;s["timezone"]=data.system.timezone;s["ntpServer"]=data.system.ntpServer;s["botToken"]=data.system.botToken;s["hubApiKey"]=data.system.hubApiKey;s["startupMessageEnabled"]=data.system.startupMessageEnabled;s["startupMessage"]=data.system.startupMessage; auto a=d["telegram"]["chats"].to<JsonArray>();for(size_t i=0;i<data.chatCount;i++){auto c=a.add<JsonObject>();c["id"]=data.chats[i].id;c["name"]=data.chats[i].name;} auto w=d["weather"];w["enabled"]=data.weather.enabled;w["apiKey"]=data.weather.apiKey;w["city"]=data.weather.city;w["hour"]=data.weather.hour;w["minute"]=data.weather.minute; auto g35=d["gpio35"];g35["enabled"]=data.gpio35.enabled;g35["highMessage"]=data.gpio35.highMessage;g35["lowMessage"]=data.gpio35.lowMessage;auto g39=d["gpio39"];g39["enabled"]=data.gpio39.enabled;g39["highMessage"]=data.gpio39.highMessage;g39["lowMessage"]=data.gpio39.lowMessage; const char* tmp="/data/config.tmp";if(SD.exists(tmp))SD.remove(tmp);File f=SD.open(tmp,FILE_WRITE);if(!f)return false;size_t n=serializeJsonPretty(d,f);f.flush();f.close();if(!n){SD.remove(tmp);return false;}if(SD.exists(CONFIG_FILE)&&!SD.remove(CONFIG_FILE))return false;return SD.rename(tmp,CONFIG_FILE); }
 
-    next[data.chatCount].id = id;
-    next[data.chatCount].name = name.length() ? name : id;
-
-    delete[] data.chats;
-    data.chats = next;
-    data.chatCount++;
-    return true;
-}
-
-void ConfigManager::setDefaults()
-{
-    clearChats();
-    data.system.deviceName = "Emily";
-    data.system.timezone = "Europe/Kyiv";
-    data.system.ntpServer = NTP_SERVER_1;
-    data.system.botToken = BOT_TOKEN;
-    data.system.hubApiKey = HUB_API_KEY;
-    data.system.startupMessageEnabled = true;
-    data.system.startupMessage = "Emily is online 🤖";
-    data.gpio35.enabled = false;
-    data.gpio35.highMessage = "";
-    data.gpio35.lowMessage = "";
-    data.gpio39.enabled = false;
-    data.gpio39.highMessage = "";
-    data.gpio39.lowMessage = "";
-}
-
-bool ConfigManager::begin()
-{
-    if (!sdCard.isAvailable()) return false;
-    setDefaults();
-    if (!load()) return false;
-    ready = true;
-    return true;
-}
-
-bool ConfigManager::load()
-{
-    if (!SD.exists(CONFIG_FILE)) return false;
-    File file = SD.open(CONFIG_FILE, FILE_READ);
-    if (!file) return false;
-
-    JsonDocument doc;
-    DeserializationError error = deserializeJson(doc, file);
-    file.close();
-    if (error) return false;
-
-    JsonObject system = doc["system"];
-    if (system["deviceName"].is<const char*>()) data.system.deviceName = system["deviceName"].as<const char*>();
-    if (system["timezone"].is<const char*>()) data.system.timezone = system["timezone"].as<const char*>();
-    if (system["ntpServer"].is<const char*>()) data.system.ntpServer = system["ntpServer"].as<const char*>();
-    if (system["botToken"].is<const char*>()) data.system.botToken = system["botToken"].as<const char*>();
-    if (system["hubApiKey"].is<const char*>()) data.system.hubApiKey = system["hubApiKey"].as<const char*>();
-    if (!system["startupMessageEnabled"].isNull()) data.system.startupMessageEnabled = system["startupMessageEnabled"].as<bool>();
-    if (system["startupMessage"].is<const char*>()) data.system.startupMessage = system["startupMessage"].as<const char*>();
-
-    clearChats();
-    JsonArray chats = doc["telegram"]["chats"];
-    if (!chats.isNull())
-    {
-        for (JsonObject chat : chats)
-            addChatInternal(String(chat["id"] | ""), String(chat["name"] | ""));
-    }
-
-    // Migrate old installations that had one hardcoded/default chat.
-    if (data.chatCount == 0 && strlen(TELEGRAM_CHAT_ID) > 0)
-        addChatInternal(TELEGRAM_CHAT_ID, "Default");
-
-    JsonObject g35 = doc["gpio35"];
-    if (!g35["enabled"].isNull()) data.gpio35.enabled = g35["enabled"].as<bool>();
-    if (g35["highMessage"].is<const char*>()) data.gpio35.highMessage = g35["highMessage"].as<const char*>();
-    if (g35["lowMessage"].is<const char*>()) data.gpio35.lowMessage = g35["lowMessage"].as<const char*>();
-
-    JsonObject g39 = doc["gpio39"];
-    if (!g39["enabled"].isNull()) data.gpio39.enabled = g39["enabled"].as<bool>();
-    if (g39["highMessage"].is<const char*>()) data.gpio39.highMessage = g39["highMessage"].as<const char*>();
-    if (g39["lowMessage"].is<const char*>()) data.gpio39.lowMessage = g39["lowMessage"].as<const char*>();
-
-    if (data.system.deviceName.length() == 0) data.system.deviceName = "Emily";
-    if (data.system.timezone.length() == 0) data.system.timezone = "Europe/Kyiv";
-    if (data.system.ntpServer.length() == 0) data.system.ntpServer = NTP_SERVER_1;
-    return true;
-}
-
-bool ConfigManager::save()
-{
-    if (!sdCard.isAvailable()) return false;
-
-    JsonDocument doc;
-    doc["system"]["deviceName"] = data.system.deviceName;
-    doc["system"]["timezone"] = data.system.timezone;
-    doc["system"]["ntpServer"] = data.system.ntpServer;
-    doc["system"]["botToken"] = data.system.botToken;
-    doc["system"]["hubApiKey"] = data.system.hubApiKey;
-    doc["system"]["startupMessageEnabled"] = data.system.startupMessageEnabled;
-    doc["system"]["startupMessage"] = data.system.startupMessage;
-
-    JsonArray chats = doc["telegram"]["chats"].to<JsonArray>();
-    for (size_t i = 0; i < data.chatCount; i++)
-    {
-        JsonObject chat = chats.add<JsonObject>();
-        chat["id"] = data.chats[i].id;
-        chat["name"] = data.chats[i].name;
-    }
-
-    doc["gpio35"]["enabled"] = data.gpio35.enabled;
-    doc["gpio35"]["highMessage"] = data.gpio35.highMessage;
-    doc["gpio35"]["lowMessage"] = data.gpio35.lowMessage;
-    doc["gpio39"]["enabled"] = data.gpio39.enabled;
-    doc["gpio39"]["highMessage"] = data.gpio39.highMessage;
-    doc["gpio39"]["lowMessage"] = data.gpio39.lowMessage;
-
-    const char* tempFile = "/data/config.tmp";
-    if (SD.exists(tempFile)) SD.remove(tempFile);
-    File file = SD.open(tempFile, FILE_WRITE);
-    if (!file) return false;
-    size_t written = serializeJsonPretty(doc, file);
-    file.flush();
-    file.close();
-    if (written == 0) { SD.remove(tempFile); return false; }
-    if (SD.exists(CONFIG_FILE) && !SD.remove(CONFIG_FILE)) return false;
-    if (!SD.rename(tempFile, CONFIG_FILE)) return false;
-    return true;
-}
-
-String ConfigManager::getDeviceName() const { return data.system.deviceName; }
-String ConfigManager::getTimezone() const { return data.system.timezone; }
-String ConfigManager::getNtpServer() const { return data.system.ntpServer; }
-String ConfigManager::getBotToken() const { return data.system.botToken; }
-String ConfigManager::getHubApiKey() const { return data.system.hubApiKey; }
-bool ConfigManager::isStartupMessageEnabled() const { return data.system.startupMessageEnabled; }
-String ConfigManager::getStartupMessage() const { return data.system.startupMessage; }
-void ConfigManager::setDeviceName(const String& value) { data.system.deviceName = value; }
-void ConfigManager::setTimezone(const String& value) { data.system.timezone = value; }
-void ConfigManager::setNtpServer(const String& value) { data.system.ntpServer = value; }
-void ConfigManager::setBotToken(const String& value) { data.system.botToken = value; }
-void ConfigManager::setHubApiKey(const String& value) { data.system.hubApiKey = value; }
-void ConfigManager::setStartupMessageEnabled(bool value) { data.system.startupMessageEnabled = value; }
-void ConfigManager::setStartupMessage(const String& value) { data.system.startupMessage = value; }
-
-size_t ConfigManager::getChatCount() const { return data.chatCount; }
-TelegramChatConfig ConfigManager::getChat(size_t index) const { return index < data.chatCount ? data.chats[index] : TelegramChatConfig(); }
-String ConfigManager::getChatName(const String& id) const { for (size_t i = 0; i < data.chatCount; i++) if (data.chats[i].id == id) return data.chats[i].name; return id; }
-bool ConfigManager::hasChat(const String& id) const { for (size_t i = 0; i < data.chatCount; i++) if (data.chats[i].id == id) return true; return false; }
-bool ConfigManager::addChat(const String& id, const String& name) { if (hasChat(id)) return false; return addChatInternal(id, name); }
-bool ConfigManager::updateChat(size_t index, const String& id, const String& name) { if (index >= data.chatCount || id.length() == 0) return false; for (size_t i=0;i<data.chatCount;i++) if (i!=index && data.chats[i].id==id) return false; data.chats[index].id=id; data.chats[index].name=name.length()?name:id; return true; }
-bool ConfigManager::deleteChat(size_t index) { if (index >= data.chatCount) return false; for (size_t i=index+1;i<data.chatCount;i++) data.chats[i-1]=data.chats[i]; data.chatCount--; if (data.chatCount==0) { delete[] data.chats; data.chats=nullptr; } return true; }
-
-bool ConfigManager::isGpio35Enabled() const { return data.gpio35.enabled; }
-String ConfigManager::getGpio35HighMessage() const { return data.gpio35.highMessage; }
-String ConfigManager::getGpio35LowMessage() const { return data.gpio35.lowMessage; }
-void ConfigManager::setGpio35Enabled(bool value) { data.gpio35.enabled = value; }
-void ConfigManager::setGpio35HighMessage(const String& value) { data.gpio35.highMessage = value; }
-void ConfigManager::setGpio35LowMessage(const String& value) { data.gpio35.lowMessage = value; }
-bool ConfigManager::isGpio39Enabled() const { return data.gpio39.enabled; }
-String ConfigManager::getGpio39HighMessage() const { return data.gpio39.highMessage; }
-String ConfigManager::getGpio39LowMessage() const { return data.gpio39.lowMessage; }
-void ConfigManager::setGpio39Enabled(bool value) { data.gpio39.enabled = value; }
-void ConfigManager::setGpio39HighMessage(const String& value) { data.gpio39.highMessage = value; }
-void ConfigManager::setGpio39LowMessage(const String& value) { data.gpio39.lowMessage = value; }
+String ConfigManager::getDeviceName()const{return data.system.deviceName;} String ConfigManager::getTimezone()const{return data.system.timezone;} String ConfigManager::getNtpServer()const{return data.system.ntpServer;} String ConfigManager::getBotToken()const{return data.system.botToken;} String ConfigManager::getHubApiKey()const{return data.system.hubApiKey;} bool ConfigManager::isStartupMessageEnabled()const{return data.system.startupMessageEnabled;} String ConfigManager::getStartupMessage()const{return data.system.startupMessage;} void ConfigManager::setDeviceName(const String&v){data.system.deviceName=v;}void ConfigManager::setTimezone(const String&v){data.system.timezone=v;}void ConfigManager::setNtpServer(const String&v){data.system.ntpServer=v;}void ConfigManager::setBotToken(const String&v){data.system.botToken=v;}void ConfigManager::setHubApiKey(const String&v){data.system.hubApiKey=v;}void ConfigManager::setStartupMessageEnabled(bool v){data.system.startupMessageEnabled=v;}void ConfigManager::setStartupMessage(const String&v){data.system.startupMessage=v;}
+size_t ConfigManager::getChatCount()const{return data.chatCount;}TelegramChatConfig ConfigManager::getChat(size_t i)const{return i<data.chatCount?data.chats[i]:TelegramChatConfig();}String ConfigManager::getChatName(const String&id)const{for(size_t i=0;i<data.chatCount;i++)if(data.chats[i].id==id)return data.chats[i].name;return id;}bool ConfigManager::hasChat(const String&id)const{for(size_t i=0;i<data.chatCount;i++)if(data.chats[i].id==id)return true;return false;}bool ConfigManager::addChat(const String&id,const String&n){return !hasChat(id)&&addChatInternal(id,n);}bool ConfigManager::updateChat(size_t i,const String&id,const String&n){if(i>=data.chatCount||!id.length())return false;for(size_t j=0;j<data.chatCount;j++)if(j!=i&&data.chats[j].id==id)return false;data.chats[i]={id,n.length()?n:id};return true;}bool ConfigManager::deleteChat(size_t i){if(i>=data.chatCount)return false;for(size_t j=i+1;j<data.chatCount;j++)data.chats[j-1]=data.chats[j];data.chatCount--;return true;}
+bool ConfigManager::isWeatherEnabled()const{return data.weather.enabled;}String ConfigManager::getWeatherApiKey()const{return data.weather.apiKey;}String ConfigManager::getWeatherCity()const{return data.weather.city;}uint8_t ConfigManager::getWeatherHour()const{return data.weather.hour;}uint8_t ConfigManager::getWeatherMinute()const{return data.weather.minute;}void ConfigManager::setWeatherEnabled(bool v){data.weather.enabled=v;}void ConfigManager::setWeatherApiKey(const String&v){data.weather.apiKey=v;}void ConfigManager::setWeatherCity(const String&v){data.weather.city=v;}void ConfigManager::setWeatherTime(uint8_t h,uint8_t m){data.weather.hour=h;data.weather.minute=m;}
+bool ConfigManager::isGpio35Enabled()const{return data.gpio35.enabled;}String ConfigManager::getGpio35HighMessage()const{return data.gpio35.highMessage;}String ConfigManager::getGpio35LowMessage()const{return data.gpio35.lowMessage;}void ConfigManager::setGpio35Enabled(bool v){data.gpio35.enabled=v;}void ConfigManager::setGpio35HighMessage(const String&v){data.gpio35.highMessage=v;}void ConfigManager::setGpio35LowMessage(const String&v){data.gpio35.lowMessage=v;}bool ConfigManager::isGpio39Enabled()const{return data.gpio39.enabled;}String ConfigManager::getGpio39HighMessage()const{return data.gpio39.highMessage;}String ConfigManager::getGpio39LowMessage()const{return data.gpio39.lowMessage;}void ConfigManager::setGpio39Enabled(bool v){data.gpio39.enabled=v;}void ConfigManager::setGpio39HighMessage(const String&v){data.gpio39.highMessage=v;}void ConfigManager::setGpio39LowMessage(const String&v){data.gpio39.lowMessage=v;}
