@@ -10,6 +10,7 @@
 #include "../services/ReminderManager.h"
 #include "../services/TimeManager.h"
 #include "../core/Statistics.h"
+#include "../network/TelegramManager.h"
 
 
 WebServerManager webServerManager;
@@ -100,6 +101,15 @@ void WebServerManager::begin()
     {
         handleToggleReminder();
     }
+    );
+
+        server.on(
+        "/api/telegram/send",
+        HTTP_POST,
+        [this]()
+        {
+            handleHubTelegramSend();
+        }
     );
 
     // --------------------------------------------------------
@@ -635,7 +645,166 @@ void WebServerManager::handleSettings()
 
     html += "</div>";
     
+        // ========================================================
+    // GPIO MONITOR
+    // ========================================================
 
+    html +=
+        "<div class='card'>";
+
+
+    html +=
+        "<h2>GPIO Monitor</h2>";
+
+
+    html +=
+        "<p>"
+        "Telegram notifications when GPIO state changes."
+        "</p>";
+
+
+    // --------------------------------------------------------
+    // GPIO 35
+    // --------------------------------------------------------
+
+    html +=
+        "<h3>GPIO 35</h3>";
+
+
+    html +=
+        "<label class='checkbox'>";
+
+
+    html +=
+        "<input "
+        "type='checkbox' "
+        "name='gpio35Enabled' ";
+
+
+    if (
+        config.isGpio35Enabled()
+    )
+    {
+        html += "checked";
+    }
+
+
+    html +=
+        "> "
+        "Enable GPIO 35 monitoring"
+        "</label>";
+
+
+    html +=
+        "<label>"
+        "Message when HIGH"
+        "</label>";
+
+
+    html +=
+        "<input "
+        "type='text' "
+        "name='gpio35HighMessage' "
+        "value='";
+
+    html +=
+        config.getGpio35HighMessage();
+
+    html +=
+        "'>";
+
+
+    html +=
+        "<label>"
+        "Message when LOW"
+        "</label>";
+
+
+    html +=
+        "<input "
+        "type='text' "
+        "name='gpio35LowMessage' "
+        "value='";
+
+    html +=
+        config.getGpio35LowMessage();
+
+    html +=
+        "'>";
+
+
+    // --------------------------------------------------------
+    // GPIO 39
+    // --------------------------------------------------------
+
+    html +=
+        "<h3>GPIO 39</h3>";
+
+
+    html +=
+        "<label class='checkbox'>";
+
+
+    html +=
+        "<input "
+        "type='checkbox' "
+        "name='gpio39Enabled' ";
+
+
+    if (
+        config.isGpio39Enabled()
+    )
+    {
+        html += "checked";
+    }
+
+
+    html +=
+        "> "
+        "Enable GPIO 39 monitoring"
+        "</label>";
+
+
+    html +=
+        "<label>"
+        "Message when HIGH"
+        "</label>";
+
+
+    html +=
+        "<input "
+        "type='text' "
+        "name='gpio39HighMessage' "
+        "value='";
+
+    html +=
+        config.getGpio39HighMessage();
+
+    html +=
+        "'>";
+
+
+    html +=
+        "<label>"
+        "Message when LOW"
+        "</label>";
+
+
+    html +=
+        "<input "
+        "type='text' "
+        "name='gpio39LowMessage' "
+        "value='";
+
+    html +=
+        config.getGpio39LowMessage();
+
+    html +=
+        "'>";
+
+
+    html +=
+        "</div>";
 
     // ========================================================
     // SAVE BUTTON
@@ -762,7 +931,82 @@ void WebServerManager::handleSaveSettings()
         minute
     );
 
+        // ========================================================
+    // GPIO 35
+    // ========================================================
 
+    config.setGpio35Enabled(
+        server.hasArg(
+            "gpio35Enabled"
+        )
+    );
+
+
+    if (
+        server.hasArg(
+            "gpio35HighMessage"
+        )
+    )
+    {
+        config.setGpio35HighMessage(
+            server.arg(
+                "gpio35HighMessage"
+            )
+        );
+    }
+
+
+    if (
+        server.hasArg(
+            "gpio35LowMessage"
+        )
+    )
+    {
+        config.setGpio35LowMessage(
+            server.arg(
+                "gpio35LowMessage"
+            )
+        );
+    }
+
+
+    // ========================================================
+    // GPIO 39
+    // ========================================================
+
+    config.setGpio39Enabled(
+        server.hasArg(
+            "gpio39Enabled"
+        )
+    );
+
+
+    if (
+        server.hasArg(
+            "gpio39HighMessage"
+        )
+    )
+    {
+        config.setGpio39HighMessage(
+            server.arg(
+                "gpio39HighMessage"
+            )
+        );
+    }
+
+
+    if (
+        server.hasArg(
+            "gpio39LowMessage"
+        )
+    )
+    {
+        config.setGpio39LowMessage(
+            server.arg(
+                "gpio39LowMessage"
+            )
+        );
+    }
     // ========================================================
     // SAVE CONFIG
     // ========================================================
@@ -2504,4 +2748,116 @@ void WebServerManager::handleDeleteReminder()
     );
 
     server.send(303);
+}
+// ============================================================
+// HUB TELEGRAM API
+// ============================================================
+
+void WebServerManager::handleHubTelegramSend()
+{
+    // --------------------------------------------------------
+    // AUTH
+    // --------------------------------------------------------
+
+    if (
+        !server.hasArg("key") ||
+        server.arg("key") != HUB_API_KEY
+    )
+    {
+        Serial.println(
+            "[HUB API] Unauthorized request"
+        );
+
+
+        server.send(
+            401,
+            "application/json",
+            "{\"ok\":false,\"error\":\"Unauthorized\"}"
+        );
+
+        return;
+    }
+
+
+    // --------------------------------------------------------
+    // MESSAGE
+    // --------------------------------------------------------
+
+    if (
+        !server.hasArg("message")
+    )
+    {
+        server.send(
+            400,
+            "application/json",
+            "{\"ok\":false,\"error\":\"Message required\"}"
+        );
+
+        return;
+    }
+
+
+    String message =
+        server.arg(
+            "message"
+        );
+
+
+    message.trim();
+
+
+    if (
+        message.length() == 0
+    )
+    {
+        server.send(
+            400,
+            "application/json",
+            "{\"ok\":false,\"error\":\"Message is empty\"}"
+        );
+
+        return;
+    }
+
+
+    // --------------------------------------------------------
+    // LOG
+    // --------------------------------------------------------
+
+    Serial.println(
+        "[HUB API] Telegram message request:"
+    );
+
+    Serial.println(
+        message
+    );
+
+
+    // --------------------------------------------------------
+    // SEND
+    // --------------------------------------------------------
+
+    bool result =
+        telegram.sendMessage(
+            TELEGRAM_CHAT_ID,
+            message
+        );
+
+
+    if (result)
+    {
+        server.send(
+            200,
+            "application/json",
+            "{\"ok\":true}"
+        );
+    }
+    else
+    {
+        server.send(
+            500,
+            "application/json",
+            "{\"ok\":false,\"error\":\"Telegram send failed\"}"
+        );
+    }
 }

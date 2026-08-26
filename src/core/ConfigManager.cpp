@@ -54,6 +54,32 @@ void ConfigManager::setDefaults()
 
     data.weather.minute =
         0;
+     // --------------------------------------------------------
+    // GPIO 35
+    // --------------------------------------------------------
+
+    data.gpio35.enabled =
+        false;
+
+    data.gpio35.highMessage =
+        "";
+
+    data.gpio35.lowMessage =
+        "";
+
+
+    // --------------------------------------------------------
+    // GPIO 39
+    // --------------------------------------------------------
+
+    data.gpio39.enabled =
+        false;
+
+    data.gpio39.highMessage =
+        "";
+
+    data.gpio39.lowMessage =
+        "";
 }
 
 
@@ -242,7 +268,74 @@ bool ConfigManager::load()
         data.weather.minute =
             doc["weather"]["minute"];
     }
+        // --------------------------------------------------------
+    // GPIO 35
+    // --------------------------------------------------------
 
+    if (
+        !doc["gpio35"]["enabled"].isNull()
+    )
+    {
+        data.gpio35.enabled =
+            doc["gpio35"]["enabled"];
+    }
+
+
+    if (
+        doc["gpio35"]["highMessage"]
+            .is<const char*>()
+    )
+    {
+        data.gpio35.highMessage =
+            doc["gpio35"]["highMessage"]
+                .as<const char*>();
+    }
+
+
+    if (
+        doc["gpio35"]["lowMessage"]
+            .is<const char*>()
+    )
+    {
+        data.gpio35.lowMessage =
+            doc["gpio35"]["lowMessage"]
+                .as<const char*>();
+    }
+
+
+    // --------------------------------------------------------
+    // GPIO 39
+    // --------------------------------------------------------
+
+    if (
+        !doc["gpio39"]["enabled"].isNull()
+    )
+    {
+        data.gpio39.enabled =
+            doc["gpio39"]["enabled"];
+    }
+
+
+    if (
+        doc["gpio39"]["highMessage"]
+            .is<const char*>()
+    )
+    {
+        data.gpio39.highMessage =
+            doc["gpio39"]["highMessage"]
+                .as<const char*>();
+    }
+
+
+    if (
+        doc["gpio39"]["lowMessage"]
+            .is<const char*>()
+    )
+    {
+        data.gpio39.lowMessage =
+            doc["gpio39"]["lowMessage"]
+                .as<const char*>();
+    }
 
     // --------------------------------------------------------
     // VALIDATE
@@ -382,7 +475,32 @@ bool ConfigManager::save()
     doc["weather"]["minute"] =
         data.weather.minute;
 
+        // --------------------------------------------------------
+    // GPIO 35
+    // --------------------------------------------------------
 
+    doc["gpio35"]["enabled"] =
+        data.gpio35.enabled;
+
+    doc["gpio35"]["highMessage"] =
+        data.gpio35.highMessage;
+
+    doc["gpio35"]["lowMessage"] =
+        data.gpio35.lowMessage;
+
+
+    // --------------------------------------------------------
+    // GPIO 39
+    // --------------------------------------------------------
+
+    doc["gpio39"]["enabled"] =
+        data.gpio39.enabled;
+
+    doc["gpio39"]["highMessage"] =
+        data.gpio39.highMessage;
+
+    doc["gpio39"]["lowMessage"] =
+        data.gpio39.lowMessage;
     // --------------------------------------------------------
     // TEMP FILE
     // --------------------------------------------------------
@@ -618,4 +736,102 @@ void ConfigManager::setWeatherTime(
     {
         data.weather.minute = minute;
     }
+}
+// ============================================================
+// GPIO 35 GETTERS
+// ============================================================
+
+bool ConfigManager::isGpio35Enabled() const
+{
+    return data.gpio35.enabled;
+}
+
+
+String ConfigManager::getGpio35HighMessage() const
+{
+    return data.gpio35.highMessage;
+}
+
+
+String ConfigManager::getGpio35LowMessage() const
+{
+    return data.gpio35.lowMessage;
+}
+
+
+// ============================================================
+// GPIO 35 SETTERS
+// ============================================================
+
+void ConfigManager::setGpio35Enabled(
+    bool enabled
+)
+{
+    data.gpio35.enabled = enabled;
+}
+
+
+void ConfigManager::setGpio35HighMessage(
+    const String& message
+)
+{
+    data.gpio35.highMessage = message;
+}
+
+
+void ConfigManager::setGpio35LowMessage(
+    const String& message
+)
+{
+    data.gpio35.lowMessage = message;
+}
+
+
+// ============================================================
+// GPIO 39 GETTERS
+// ============================================================
+
+bool ConfigManager::isGpio39Enabled() const
+{
+    return data.gpio39.enabled;
+}
+
+
+String ConfigManager::getGpio39HighMessage() const
+{
+    return data.gpio39.highMessage;
+}
+
+
+String ConfigManager::getGpio39LowMessage() const
+{
+    return data.gpio39.lowMessage;
+}
+
+
+// ============================================================
+// GPIO 39 SETTERS
+// ============================================================
+
+void ConfigManager::setGpio39Enabled(
+    bool enabled
+)
+{
+    data.gpio39.enabled = enabled;
+}
+
+
+void ConfigManager::setGpio39HighMessage(
+    const String& message
+)
+{
+    data.gpio39.highMessage = message;
+}
+
+
+void ConfigManager::setGpio39LowMessage(
+    const String& message
+)
+{
+    data.gpio39.lowMessage = message;
 }

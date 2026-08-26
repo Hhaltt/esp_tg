@@ -27,57 +27,117 @@ void TimeManager::begin()
 
 void TimeManager::update()
 {
+    // --------------------------------------------------------
+    // ETHERNET REQUIRED
+    // --------------------------------------------------------
+
     if (!ethernet.isConnected())
     {
         return;
     }
 
 
-    // Якщо час ще не налаштований —
-    // пробуємо отримати NTP
+    // --------------------------------------------------------
+    // DETERMINE INTERVAL
+    // --------------------------------------------------------
 
-    if (!timeValid)
+    unsigned long interval;
+
+
+    if (timeValid)
     {
-        Serial.println(
-            "[TIME] Starting NTP..."
-        );
+        // Час вже отриманий —
+        // синхронізуємо раз на 6 годин
+
+        interval =
+            NTP_SYNC_INTERVAL;
+    }
+    else
+    {
+        // Час ще не отриманий —
+        // повторюємо спробу раз на хвилину
+
+        interval =
+            NTP_RETRY_INTERVAL;
+    }
 
 
-        configTime(
-            GMT_OFFSET_SEC,
-            DAYLIGHT_OFFSET_SEC,
-            NTP_SERVER_1,
-            NTP_SERVER_2
-        );
+    // --------------------------------------------------------
+    // CHECK TIME
+    // --------------------------------------------------------
+
+    if (
+        lastSyncAttempt != 0 &&
+        millis() - lastSyncAttempt < interval
+    )
+    {
+        return;
+    }
 
 
-        struct tm timeinfo;
+    // Запам'ятовуємо час спроби
+
+    lastSyncAttempt =
+        millis();
 
 
-        if (
-            getLocalTime(
-                &timeinfo,
-                5000
-            )
+    // --------------------------------------------------------
+    // START NTP
+    // --------------------------------------------------------
+
+    Serial.println(
+        "[TIME] Synchronizing with NTP..."
+    );
+
+
+    configTime(
+        GMT_OFFSET_SEC,
+        DAYLIGHT_OFFSET_SEC,
+        NTP_SERVER_1,
+        NTP_SERVER_2
+    );
+
+
+    struct tm timeinfo;
+
+
+    if (
+        getLocalTime(
+            &timeinfo,
+            5000
         )
+    )
+    {
+        bool wasValid =
+            timeValid;
+
+
+        timeValid = true;
+
+
+        if (wasValid)
         {
-            timeValid = true;
-
-
             Serial.println(
-                "[TIME] NTP synchronized"
-            );
-
-            Serial.println(
-                getDateTimeString()
+                "[TIME] NTP resynchronized"
             );
         }
         else
         {
             Serial.println(
-                "[TIME] Failed to get NTP time"
+                "[TIME] NTP synchronized"
             );
         }
+
+
+        Serial.println(
+            getDateTimeString()
+        );
+    }
+    else
+    {
+        Serial.println(
+            "[TIME] Failed to synchronize NTP"
+        );
     }
 }
 

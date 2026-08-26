@@ -38,6 +38,8 @@ private:
 
     void handleToggleReminder();
 
+    void handleHubTelegramSend();
+
     // --------------------------------------------------------
     // HELPERS
     // --------------------------------------------------------

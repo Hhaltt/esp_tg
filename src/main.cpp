@@ -11,6 +11,7 @@
 
 #include "services/TimeManager.h"
 #include "services/ReminderManager.h"
+#include "services/GpioMonitorManager.h"
 
 #include "storage/SDCardManager.h"
 #include "storage/StorageManager.h"
@@ -142,6 +143,11 @@ void setup()
 
     webServerManager.begin();
 
+    // --------------------------------------------------------
+    // GPIO MONITOR
+    // --------------------------------------------------------
+
+    gpioMonitor.begin();
 
     Serial.println(
         "[SYSTEM] Initialization complete"
@@ -160,6 +166,8 @@ void loop()
     timeManager.update();
 
     telegram.update();
+
+    gpioMonitor.update();
 
     webServerManager.update();
 
