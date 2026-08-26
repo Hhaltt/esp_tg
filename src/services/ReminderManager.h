@@ -28,25 +28,34 @@ class ReminderManager
 public:
     bool begin();
     void update();
+
     uint32_t addReminder(Reminder reminder);
     bool updateReminder(const Reminder& reminder);
     bool deleteReminder(uint32_t id);
     bool setEnabled(uint32_t id, bool enabled);
+
     size_t getCount() const;
     Reminder getReminder(size_t index) const;
     bool getReminderById(uint32_t id, Reminder& reminder) const;
+
     bool load();
     bool save();
 
 private:
     static const size_t MAX_REMINDERS = 256;
+
     Reminder reminders[MAX_REMINDERS];
     size_t reminderCount = 0;
     uint32_t nextId = 1;
     unsigned long lastCheck = 0;
+
     time_t calculateNextTrigger(Reminder& reminder, time_t fromTime);
     time_t calculateScheduledTime(Reminder& reminder, time_t referenceTime);
-    void checkReminder(Reminder& reminder, time_t now);
+
+    // Returns true when a successfully sent one-time reminder
+    // must be removed from the list.
+    bool checkReminder(Reminder& reminder, time_t now);
+
     void advanceReminder(Reminder& reminder, time_t now);
     const char* typeToString(ReminderType type) const;
     ReminderType stringToType(const String& type) const;
