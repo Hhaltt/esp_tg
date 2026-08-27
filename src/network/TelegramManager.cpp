@@ -159,14 +159,6 @@ void TelegramManager::handleMessage(
             text
         );
     }
-    else
-    {
-        sendMessage(
-            chatId,
-            "Я поки що розумію тільки команди.\n\n"
-            "Спробуй /start"
-        );
-    }
 }
 
 
@@ -315,122 +307,56 @@ void TelegramManager::sendAbout(
 
     message += "🟢 <b>Стан:</b> Online\n";
 
-    // --------------------------------------------------------
-    // Uptime
-    // --------------------------------------------------------
-
     message += "⏱ <b>Поточний uptime:</b> ";
-    message +=
-        statistics.getCurrentUptimeString();
-
+    message += statistics.getCurrentUptimeString();
     message += "\n";
 
     message += "🕰 <b>Total uptime:</b> ";
-    message +=
-        statistics.getTotalUptimeString();
-
+    message += statistics.getTotalUptimeString();
     message += "\n";
-
-    // --------------------------------------------------------
-    // Boot
-    // --------------------------------------------------------
 
     message += "🔄 <b>Перезапусків:</b> ";
-    message +=
-        String(
-            statistics.getBootCount()
-        );
-
+    message += String(statistics.getBootCount());
     message += "\n\n";
-
-    // --------------------------------------------------------
-    // Messages
-    // --------------------------------------------------------
 
     message += "💬 <b>Повідомлень:</b>\n";
-
     message += "📥 Отримано: ";
-    message +=
-        String(
-            statistics.getMessagesReceived()
-        );
-
+    message += String(statistics.getMessagesReceived());
     message += "\n";
-
     message += "📤 Надіслано: ";
-    message +=
-        String(
-            statistics.getMessagesSent()
-        );
-
+    message += String(statistics.getMessagesSent());
     message += "\n\n";
-
-    // --------------------------------------------------------
-    // Commands
-    // --------------------------------------------------------
 
     message += "⚙️ <b>Команди:</b>\n";
-
     message += "📥 Отримано: ";
-    message +=
-        String(
-            statistics.getCommandsReceived()
-        );
-
+    message += String(statistics.getCommandsReceived());
     message += "\n";
-
     message += "✅ Виконано: ";
-    message +=
-        String(
-            statistics.getCommandsExecuted()
-        );
-
+    message += String(statistics.getCommandsExecuted());
     message += "\n";
-
     message += "❌ Помилок: ";
-    message +=
-        String(
-            statistics.getCommandErrors()
-        );
-
+    message += String(statistics.getCommandErrors());
     message += "\n\n";
 
-    // --------------------------------------------------------
-    // System
-    // --------------------------------------------------------
-
     message += "💾 <b>Система:</b>\n";
-
     message += "🧠 Free heap: ";
-    message +=
-        String(
-            ESP.getFreeHeap()
-        );
-
+    message += String(ESP.getFreeHeap());
     message += " bytes\n";
 
     message += "🌐 IP: ";
     message += ethernet.getIP();
-
     message += "\n";
 
     message += "❗ Помилок: ";
-    message +=
-        String(
-            statistics.getErrors()
-        );
+    message += String(statistics.getErrors());
 
     if (timeManager.isTimeValid())
     {
         message += "\n\n🕐 ";
-        message +=
-            timeManager.getDateTimeString();
+        message += timeManager.getDateTimeString();
     }
 
-    sendMessage(
-        chatId,
-        message
-    );
+    sendMessage(chatId, message);
 }
 
 
@@ -472,10 +398,7 @@ bool TelegramManager::sendMessage(
     else
     {
         statistics.onError();
-
-        Serial.println(
-            "[TG] Failed to send message"
-        );
+        Serial.println("[TG] Failed to send message");
     }
 
     return result;
