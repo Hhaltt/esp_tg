@@ -44,9 +44,10 @@ bool CommandRouteManager::execute(const String& phrase, String& reply)
         }
 
         JsonDocument doc;
-        if(!deserializeJson(doc,response))
+        DeserializationError error=deserializeJson(doc,response);
+        if(!error && doc["message"].is<const char*>())
         {
-            if(doc["message"].is<const char*>())reply=String(doc["message"].as<const char*>());
+            reply=String(doc["message"].as<const char*>());
         }
         if(!reply.length())reply="✅ Виконано";
         return true;
