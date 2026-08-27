@@ -83,6 +83,10 @@ static bool readReminder(WebServer& s, Reminder& r, bool edit)
 
 void WebServerManager::begin()
 {
+    // ESP32 WebServer only exposes custom request headers after they are registered.
+    const char* headers[] = { "X-API-Key" };
+    server.collectHeaders(headers, 1);
+
     server.on("/", HTTP_GET, [this]() {
         server.sendHeader("Location", "/sd/");
         server.send(303);
