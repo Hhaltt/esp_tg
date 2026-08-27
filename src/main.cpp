@@ -12,6 +12,7 @@
 #include "services/TimeManager.h"
 #include "services/ReminderManager.h"
 #include "services/GpioMonitorManager.h"
+#include "services/LedActivityManager.h"
 
 #include "storage/SDCardManager.h"
 #include "storage/StorageManager.h"
@@ -113,11 +114,15 @@ void setup()
         // Emily продовжує працювати
         // навіть без SD.
     }
+
+
     // --------------------------------------------------------
     // CONFIG
     // --------------------------------------------------------
 
     config.begin();
+
+
     // --------------------------------------------------------
     // reminder
     // --------------------------------------------------------
@@ -137,17 +142,28 @@ void setup()
     // --------------------------------------------------------
 
     telegram.begin();
+
+
     // --------------------------------------------------------
     // WEB
     // --------------------------------------------------------
 
     webServerManager.begin();
 
+
     // --------------------------------------------------------
     // GPIO MONITOR
     // --------------------------------------------------------
 
     gpioMonitor.begin();
+
+
+    // --------------------------------------------------------
+    // RX / TX LEDS
+    // --------------------------------------------------------
+
+    ledActivity.begin();
+
 
     Serial.println(
         "[SYSTEM] Initialization complete"
@@ -174,6 +190,9 @@ void loop()
     statistics.update();
 
     reminderManager.update();
+
+    ledActivity.update();
+
 
     // --------------------------------------------------------
     // STATISTICS CHECKPOINT
