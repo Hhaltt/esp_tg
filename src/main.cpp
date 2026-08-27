@@ -44,7 +44,53 @@ static void setupSdWebExperiment()
 {
     WebServer& server = webServerManager.rawServer();
 
-    server.serveStatic("/sd/", SD, "/www/");
+    // URL /sd/ is only a web prefix. The physical SD path starts at /www/.
+    // Do not use serveStatic here: it appends the URL path to the SD path.
+    server.on("/sd/", HTTP_GET, [&server]()
+    {
+        if (!sdCard.isAvailable())
+        {
+            server.send(503, "text/plain", "SD card unavailable");
+            return;
+        }
+
+        if (!SD.exists("/www/index.html"))
+        {
+            Serial.println("[WEB] Missing SD frontend: /www/index.html");
+            server.send(404, "text/plain", "Missing /www/index.html on SD card");
+            return;
+        }
+
+        File file = SD.open("/www/index.html", FILE_READ);
+        server.streamFile(file, "text/html; charset=utf-8");
+        file.close();
+    });
+
+    server.on("/sd/style.css", HTTP_GET, [&server]()
+    {
+        if (!sdCard.isAvailable() || !SD.exists("/www/style.css"))
+        {
+            server.send(404, "text/plain", "Missing /www/style.css on SD card");
+            return;
+        }
+
+        File file = SD.open("/www/style.css", FILE_READ);
+        server.streamFile(file, "text/css; charset=utf-8");
+        file.close();
+    });
+
+    server.on("/sd/app.js", HTTP_GET, [&server]()
+    {
+        if (!sdCard.isAvailable() || !SD.exists("/www/app.js"))
+        {
+            server.send(404, "text/plain", "Missing /www/app.js on SD card");
+            return;
+        }
+
+        File file = SD.open("/www/app.js", FILE_READ);
+        server.streamFile(file, "application/javascript; charset=utf-8");
+        file.close();
+    });
 
     server.on("/sd", HTTP_GET, [&server]()
     {
