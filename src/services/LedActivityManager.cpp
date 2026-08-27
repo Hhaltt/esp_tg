@@ -24,14 +24,40 @@ void LedActivityManager::begin()
     );
 
 
+    // LEDs are active LOW.
+
     digitalWrite(
         LED_RX_PIN,
-        LOW
+        HIGH
     );
 
     digitalWrite(
         LED_TX_PIN,
-        LOW
+        HIGH
+    );
+
+
+    esp_timer_create_args_t rxTimerArgs = {};
+
+    rxTimerArgs.callback = rxTimerCallback;
+    rxTimerArgs.arg = this;
+    rxTimerArgs.name = "led_rx";
+
+    esp_timer_create(
+        &rxTimerArgs,
+        &rxTimer
+    );
+
+
+    esp_timer_create_args_t txTimerArgs = {};
+
+    txTimerArgs.callback = txTimerCallback;
+    txTimerArgs.arg = this;
+    txTimerArgs.name = "led_tx";
+
+    esp_timer_create(
+        &txTimerArgs,
+        &txTimer
     );
 
 
@@ -52,7 +78,6 @@ void LedActivityManager::update()
     uint64_t messagesReceived =
         statistics.getMessagesReceived();
 
-
     if (
         messagesReceived !=
         lastMessagesReceived
@@ -68,7 +93,6 @@ void LedActivityManager::update()
     uint64_t messagesSent =
         statistics.getMessagesSent();
 
-
     if (
         messagesSent !=
         lastMessagesSent
@@ -78,38 +102,6 @@ void LedActivityManager::update()
             messagesSent;
 
         onTx();
-    }
-
-
-    if (
-        rxActive
-        &&
-        millis() - rxStartedAt
-        >= LED_ACTIVITY_DURATION
-    )
-    {
-        digitalWrite(
-            LED_RX_PIN,
-            LOW
-        );
-
-        rxActive = false;
-    }
-
-
-    if (
-        txActive
-        &&
-        millis() - txStartedAt
-        >= LED_ACTIVITY_DURATION
-    )
-    {
-        digitalWrite(
-            LED_TX_PIN,
-            LOW
-        );
-
-        txActive = false;
     }
 }
 
@@ -122,13 +114,18 @@ void LedActivityManager::onRx()
 {
     digitalWrite(
         LED_RX_PIN,
-        HIGH
+        LOW
     );
 
-    rxStartedAt =
-        millis();
+    if (rxTimer)
+    {
+        esp_timer_stop(rxTimer);
 
-    rxActive = true;
+        esp_timer_start_once(
+            rxTimer,
+            (uint64_t)LED_ACTIVITY_DURATION * 1000ULL
+        );
+    }
 }
 
 
@@ -140,11 +137,48 @@ void LedActivityManager::onTx()
 {
     digitalWrite(
         LED_TX_PIN,
-        HIGH
+        LOW
     );
 
-    txStartedAt =
-        millis();
+    if (txTimer)
+    {
+        esp_timer_stop(txTimer);
 
-    txActive = true;
+        esp_timer_start_once(
+            txTimer,
+            (uint64_t)LED_ACTIVITY_DURATION * 1000ULL
+        );
+    }
+}
+
+
+// ============================================================
+// TIMER CALLBACKS
+// ============================================================
+
+void LedActivityManager::rxTimerCallback(
+    void* arg
+)
+{
+    LedActivityManager* manager =
+        static_cast<LedActivityManager*>(arg);
+
+    digitalWrite(
+        LED_RX_PIN,
+        HIGH
+    );
+}
+
+
+void LedActivityManager::txTimerCallback(
+    void* arg
+)
+{
+    LedActivityManager* manager =
+        static_cast<LedActivityManager*>(arg);
+
+    digitalWrite(
+        LED_TX_PIN,
+        HIGH
+    );
 }
