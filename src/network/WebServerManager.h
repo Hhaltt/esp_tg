@@ -9,6 +9,12 @@ public:
     void begin();
     void update();
 
+    // Experimental static web frontend can register routes and files here.
+    WebServer& rawServer()
+    {
+        return server;
+    }
+
 private:
     WebServer server;
 
