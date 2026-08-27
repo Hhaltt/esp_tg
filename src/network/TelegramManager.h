@@ -9,6 +9,10 @@ public:
     void update();
     bool isStarted();
 
+    // Re-read the Telegram token from ConfigManager and apply it immediately.
+    // Returns false if the new token is empty.
+    bool reloadToken();
+
     bool sendMessage(
         const String& chatId,
         const String& text,
