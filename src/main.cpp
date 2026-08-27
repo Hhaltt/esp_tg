@@ -83,8 +83,8 @@ static void setupSdWebExperiment()
         json += "\"chatCount\":" + String(config.getChatCount()) + ",";
         json += "\"reminderCount\":" + String(reminderManager.getCount()) + ",";
         json += "\"sdAvailable\":" + String(sdCard.isAvailable() ? "true" : "false") + ",";
-        json += "\"sdTotal\":" + String((unsigned long long)total) + ",";
-        json += "\"sdUsed\":" + String((unsigned long long)used);
+        json += "\"sdTotal\":" + String((uint32_t)total) + ",";
+        json += "\"sdUsed\":" + String((uint32_t)used);
         json += "}";
 
         server.send(200, "application/json; charset=utf-8", json);
