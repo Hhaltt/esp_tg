@@ -1,6 +1,8 @@
 #include <Arduino.h>
 #include <esp_task_wdt.h>
 #include <esp_idf_version.h>
+#include <SD.h>
+#include <ETH.h>
 
 #include "core/Config.h"
 #include "core/Statistics.h"
@@ -38,6 +40,59 @@ static void beginWatchdog()
     else if (result != ESP_ERR_INVALID_STATE) Serial.printf("[WDT] Add task error: %d\n", (int)result);
 }
 
+static void setupSdWebExperiment()
+{
+    WebServer& server = webServerManager.rawServer();
+
+    server.serveStatic("/sd/", SD, "/www/");
+
+    server.on("/sd", HTTP_GET, [&server]()
+    {
+        server.sendHeader("Location", "/sd/");
+        server.send(303);
+    });
+
+    server.on("/api/status", HTTP_GET, [&server]()
+    {
+        uint64_t total = 0;
+        uint64_t used = 0;
+
+        if (sdCard.isAvailable())
+        {
+            total = SD.totalBytes();
+            used = SD.usedBytes();
+        }
+
+        String json = "{";
+        json += "\"deviceName\":\"" + config.getDeviceName() + "\",";
+        json += "\"linkUp\":" + String(ETH.linkUp() ? "true" : "false") + ",";
+        json += "\"ip\":\"" + ETH.localIP().toString() + "\",";
+        json += "\"gateway\":\"" + ETH.gatewayIP().toString() + "\",";
+        json += "\"linkSpeed\":" + String(ETH.linkSpeed()) + ",";
+        json += "\"fullDuplex\":" + String(ETH.fullDuplex() ? "true" : "false") + ",";
+        json += "\"time\":\"" + timeManager.getDateTimeString() + "\",";
+        json += "\"totalUptime\":\"" + statistics.getTotalUptimeString() + "\",";
+        json += "\"currentUptime\":\"" + statistics.getCurrentUptimeString() + "\",";
+        json += "\"bootCount\":" + String(statistics.getBootCount()) + ",";
+        json += "\"errors\":" + String(statistics.getErrors()) + ",";
+        json += "\"messagesReceived\":" + String(statistics.getMessagesReceived()) + ",";
+        json += "\"messagesSent\":" + String(statistics.getMessagesSent()) + ",";
+        json += "\"commandsReceived\":" + String(statistics.getCommandsReceived()) + ",";
+        json += "\"commandsExecuted\":" + String(statistics.getCommandsExecuted()) + ",";
+        json += "\"commandErrors\":" + String(statistics.getCommandErrors()) + ",";
+        json += "\"chatCount\":" + String(config.getChatCount()) + ",";
+        json += "\"reminderCount\":" + String(reminderManager.getCount()) + ",";
+        json += "\"sdAvailable\":" + String(sdCard.isAvailable() ? "true" : "false") + ",";
+        json += "\"sdTotal\":" + String((unsigned long long)total) + ",";
+        json += "\"sdUsed\":" + String((unsigned long long)used);
+        json += "}";
+
+        server.send(200, "application/json; charset=utf-8", json);
+    });
+
+    Serial.println("[WEB] SD frontend experiment: /sd/");
+}
+
 void setup()
 {
     Serial.begin(115200);
@@ -72,6 +127,7 @@ void setup()
     timeManager.begin();
     telegram.begin();
     webServerManager.begin();
+    setupSdWebExperiment();
     gpioMonitor.begin();
     ledActivity.begin();
 
