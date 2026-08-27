@@ -83,9 +83,8 @@ static bool readReminder(WebServer& s, Reminder& r, bool edit)
 
 void WebServerManager::begin()
 {
-    // ESP32 WebServer only exposes custom request headers after they are registered.
-    const char* headers[] = { "X-API-Key" };
-    server.collectHeaders(headers, 1);
+    const char* headerKeys[] = {"X-API-Key"};
+    server.collectHeaders(headerKeys, 1);
 
     server.on("/", HTTP_GET, [this]() {
         server.sendHeader("Location", "/sd/");
@@ -102,7 +101,6 @@ void WebServerManager::begin()
         server.send(303);
     });
 
-    // Keep secrets out of normal settings JSON. The web UI only shows masked inputs.
     server.on("/api/secrets", HTTP_GET, [this]() {
         sendJson(server, 410, false, "Deprecated endpoint");
     });
@@ -118,9 +116,6 @@ void WebServerManager::begin()
     server.on("/reminders/delete", HTTP_POST, [this]() { handleDeleteReminder(); });
     server.on("/reminders/toggle", HTTP_POST, [this]() { handleToggleReminder(); });
 
-    // Legacy endpoint.
-    server.on("/api/telegram/send", HTTP_POST, [this]() { handleHubTelegramSend(); });
-    // Stable external API.
     server.on("/api/v1/telegram/send", HTTP_POST, [this]() { handleHubTelegramSend(); });
 
     server.onNotFound([this]() { handleNotFound(); });
@@ -143,7 +138,6 @@ void WebServerManager::handleSaveSettings()
     config.setTimezone(server.arg("timezone"));
     config.setNtpServer(server.arg("ntpServer"));
 
-    // Empty masked fields mean "leave the existing secret unchanged".
     String botToken = server.arg("botToken");
     String hubApiKey = server.arg("hubApiKey");
     botToken.trim();
@@ -315,8 +309,8 @@ void WebServerManager::handleToggleReminder()
 
 void WebServerManager::handleHubTelegramSend()
 {
-    String apiKey = server.arg("apiKey");
-    if (!apiKey.length()) apiKey = server.header("X-API-Key");
+    String apiKey = server.header("X-API-Key");
+    if (!apiKey.length()) apiKey = server.arg("apiKey");
 
     String chatId = server.arg("chatId");
     String text = server.arg("text");
