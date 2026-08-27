@@ -13,12 +13,38 @@ WiFiClientSecure telegramClient;
 UniversalTelegramBot bot(BOT_TOKEN, telegramClient);
 TelegramManager telegram;
 
+bool TelegramManager::reloadToken()
+{
+    String token = config.getBotToken();
+    token.trim();
+
+    if (!token.length())
+    {
+        return false;
+    }
+
+    bot.updateToken(token);
+
+    // The new bot must start its own update stream. Do not send the startup
+    // message again just because credentials were changed at runtime.
+    bot.last_message_received = 0;
+    lastCheck = 0;
+    started = ethernet.isConnected();
+
+    Serial.println("[TG] Telegram token reloaded");
+
+    return true;
+}
+
 void TelegramManager::begin()
 {
     telegramClient.setInsecure();
-    String token = config.getBotToken();
-    token.trim();
-    if (token.length()) bot.updateToken(token);
+
+    if (!reloadToken())
+    {
+        Serial.println("[TG] Telegram token is empty");
+    }
+
     Serial.println("[TG] Telegram initialized");
 }
 
@@ -29,12 +55,14 @@ void TelegramManager::update()
         started = false;
         return;
     }
+
     if (!started)
     {
         started = true;
         Serial.println("[TG] Telegram ready");
         sendStartupMessage();
     }
+
     if (millis() - lastCheck >= TELEGRAM_CHECK_INTERVAL)
     {
         lastCheck = millis();
