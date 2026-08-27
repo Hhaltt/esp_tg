@@ -1,34 +1,9 @@
-const $=id=>document.getElementById(id);
-function bytes(v){if(v<1024)return v+' B';if(v<1048576)return (v/1024).toFixed(1)+' KB';return (v/1048576).toFixed(2)+' MB'}
-async function load(){
-  try{
-    const r=await fetch('/api/status',{cache:'no-store'});
-    if(!r.ok)throw new Error('HTTP '+r.status);
-    const d=await r.json();
-    document.title=d.deviceName;
-    $('deviceName').textContent=d.deviceName;
-    $('networkStatus').textContent=d.linkUp?'Online':'Offline';
-    $('ip').textContent=d.ip;
-    $('gateway').textContent=d.gateway;
-    $('speed').textContent=d.linkSpeed+' Mbps';
-    $('duplex').textContent=d.fullDuplex?'Full':'Half';
-    $('time').textContent=d.time;
-    $('totalUptime').textContent=d.totalUptime;
-    $('currentUptime').textContent=d.currentUptime;
-    $('bootCount').textContent=d.bootCount;
-    $('errors').textContent=d.errors;
-    $('chatCount').textContent=d.chatCount;
-    $('messagesReceived').textContent=d.messagesReceived;
-    $('messagesSent').textContent=d.messagesSent;
-    $('commandsReceived').textContent=d.commandsReceived;
-    $('commandsExecuted').textContent=d.commandsExecuted;
-    $('commandErrors').textContent=d.commandErrors;
-    $('reminderCount').textContent=d.reminderCount;
-    $('sdStatus').textContent=d.sdAvailable?'Available':'Unavailable';
-    $('sdTotal').textContent=d.sdAvailable?bytes(d.sdTotal):'—';
-    $('sdUsed').textContent=d.sdAvailable?bytes(d.sdUsed):'—';
-  }catch(e){console.error(e);$('networkStatus').textContent='API error'}
-}
-$('refresh').addEventListener('click',load);
-load();
-setInterval(load,5000);
+const $=id=>document.getElementById(id);const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+async function post(url,data){const r=await fetch(url,{method:'POST',body:new URLSearchParams(data)});if(!r.ok)throw new Error(await r.text());}
+async function loadStatus(){const s=await fetch('/api/status').then(r=>r.json());for(const k of ['deviceName','ip','gateway','time','totalUptime','currentUptime','bootCount','errors','messagesReceived','messagesSent','commandsReceived','commandsExecuted','commandErrors','chatCount','reminderCount']){const e=$(k);if(e)e.textContent=s[k]??'—';}const e=$('networkStatus');if(e)e.textContent=s.linkUp?'Online':'Offline';const speed=$('speed');if(speed)speed.textContent=`${s.linkSpeed} Mbps`;const duplex=$('duplex');if(duplex)duplex.textContent=s.fullDuplex?'Full':'Half';const ss=$('sdStatus');if(ss)ss.textContent=s.sdAvailable?'Available':'Unavailable';const f=v=>`${(Number(v)/1048576).toFixed(2)} MB`;const st=$('sdTotal');if(st)st.textContent=f(s.sdTotal);const su=$('sdUsed');if(su)su.textContent=f(s.sdUsed);}
+function formData(form){const o={};new FormData(form).forEach((v,k)=>o[k]=v);form.querySelectorAll('input[type=checkbox]').forEach(x=>{if(x.checked)o[x.name]='on';});return o;}
+async function settings(){const s=await fetch('/api/settings').then(r=>r.json());const f=$('settingsForm');if(!f)return;for(const [k,v] of Object.entries(s)){const e=f.elements[k];if(e){if(e.type==='checkbox')e.checked=!!v;else e.value=v;}}const list=$('chatList');list.innerHTML=s.chats.map(c=>`<div class="item"><b>${esc(c.name)}</b><br><code>${esc(c.id)}</code><div class="actions"><button data-edit="${c.index}">Edit</button><button class="danger" data-del="${c.index}">Delete</button></div></div>`).join('');list.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>{const c=s.chats.find(x=>x.index==b.dataset.edit);const name=prompt('Chat name',c.name);if(name===null)return;const id=prompt('Chat ID',c.id);if(id===null)return;post('/settings/chat/edit',{index:c.index,name,id}).then(()=>location.reload()).catch(alert);});list.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{if(confirm('Delete this chat?'))post('/settings/chat/delete',{index:b.dataset.del}).then(()=>location.reload()).catch(alert);});f.onsubmit=async e=>{e.preventDefault();try{await post('/settings/save',formData(f));alert('Saved');}catch(x){alert(x.message)}};$('addChat').onsubmit=async e=>{e.preventDefault();try{await post('/settings/chat/add',formData(e.target));location.reload()}catch(x){alert(x.message)}};}
+function reminderText(r){const d=['Once','Every day','Every Sunday','Every Monday','Every Tuesday','Every Wednesday','Every Thursday','Every Friday','Every Saturday','Every month','Every year'];if(r.type===0)return `Once: ${String(r.day).padStart(2,'0')}.${String(r.month).padStart(2,'0')}.${r.year}`;if(r.type===1)return d[1];if(r.type===2)return d[2+r.weekday];if(r.type===3)return `Every month on day ${r.day}`;return `Every year on ${String(r.day).padStart(2,'0')}.${String(r.month).padStart(2,'0')}`;}
+async function reminders(){const [r,s]=await Promise.all([fetch('/api/reminders').then(x=>x.json()),fetch('/api/settings').then(x=>x.json())]);const title=$('reminderTitle');if(title)title.textContent=`My reminders (${r.count})`;const list=$('reminderList');if(!list)return;list.innerHTML=r.items.length?r.items.map(x=>`<div class="item"><b>${esc(x.message)}</b><br>${reminderText(x)} · ${String(x.hour).padStart(2,'0')}:${String(x.minute).padStart(2,'0')} · ${x.enabled?'Enabled':'Disabled'}${x.silent?' · Silent':''}<div class="actions"><button data-toggle="${x.id}" data-enabled="${x.enabled?0:1}">${x.enabled?'Disable':'Enable'}</button><button class="danger" data-del="${x.id}">Delete</button></div></div>`).join(''):'<p>No reminders yet.</p>';list.querySelectorAll('[data-toggle]').forEach(b=>b.onclick=()=>post('/reminders/toggle',{id:b.dataset.toggle,enabled:b.dataset.enabled}).then(()=>location.reload()).catch(alert));list.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{if(confirm('Delete this reminder?'))post('/reminders/delete',{id:b.dataset.del}).then(()=>location.reload()).catch(alert);});const cs=$('chatSelect');cs.innerHTML=s.chats.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');const type=$('reminderType');const upd=()=>['once','weekly','monthly','yearly'].forEach(n=>$(n+'Fields').hidden=type.value!==n);type.onchange=upd;upd();$('reminderForm').onsubmit=async e=>{e.preventDefault();try{await post('/reminders/add',formData(e.target));location.reload()}catch(x){alert(x.message)}};}
+(async()=>{try{await loadStatus();if($('settingsForm'))await settings();if($('reminderList'))await reminders();}catch(e){console.error(e);}})();
+if($('refresh'))$('refresh').onclick=loadStatus;
