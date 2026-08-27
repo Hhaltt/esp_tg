@@ -56,30 +56,31 @@ static void streamSd(WebServer& s, const char* path, const char* type)
     f.close();
 }
 
+// Keep this flat structure because the SD frontend consumes these exact keys.
 static String statusJson()
 {
     String j = "{";
     j += "\"deviceName\":\"" + esc(config.getDeviceName()) + "\",";
-    j += "\"network\":{\"connected\":" + String(ETH.linkUp() ? "true" : "false");
-    j += ",\"ip\":\"" + ETH.localIP().toString() + "\"";
-    j += ",\"gateway\":\"" + ETH.gatewayIP().toString() + "\"";
-    j += ",\"speed\":" + String(ETH.linkSpeed());
-    j += ",\"fullDuplex\":" + String(ETH.fullDuplex() ? "true" : "false") + "},";
-    j += "\"storage\":{\"available\":" + String(sdCard.isAvailable() ? "true" : "false");
-    j += ",\"size\":" + String(sdCard.isAvailable() ? SD.cardSize() : 0);
-    j += ",\"used\":" + String(sdCard.isAvailable() ? SD.usedBytes() : 0) + "},";
-    j += "\"system\":{\"time\":\"" + esc(timeManager.getDateTimeString()) + "\"";
-    j += ",\"totalUptime\":\"" + statistics.getTotalUptimeString() + "\"";
-    j += ",\"currentUptime\":\"" + statistics.getCurrentUptimeString() + "\"";
-    j += ",\"bootCount\":" + String(statistics.getBootCount());
-    j += ",\"errors\":" + String(statistics.getErrors()) + "},";
-    j += "\"telegram\":{\"messagesReceived\":" + String(statistics.getMessagesReceived());
-    j += ",\"messagesSent\":" + String(statistics.getMessagesSent()) + "},";
-    j += "\"commands\":{\"received\":" + String(statistics.getCommandsReceived());
-    j += ",\"executed\":" + String(statistics.getCommandsExecuted());
-    j += ",\"errors\":" + String(statistics.getCommandErrors()) + "},";
+    j += "\"linkUp\":" + String(ETH.linkUp() ? "true" : "false") + ",";
+    j += "\"ip\":\"" + ETH.localIP().toString() + "\",";
+    j += "\"gateway\":\"" + ETH.gatewayIP().toString() + "\",";
+    j += "\"linkSpeed\":" + String(ETH.linkSpeed()) + ",";
+    j += "\"fullDuplex\":" + String(ETH.fullDuplex() ? "true" : "false") + ",";
+    j += "\"time\":\"" + esc(timeManager.getDateTimeString()) + "\",";
+    j += "\"totalUptime\":\"" + statistics.getTotalUptimeString() + "\",";
+    j += "\"currentUptime\":\"" + statistics.getCurrentUptimeString() + "\",";
+    j += "\"bootCount\":" + String(statistics.getBootCount()) + ",";
+    j += "\"errors\":" + String(statistics.getErrors()) + ",";
     j += "\"chatCount\":" + String(config.getChatCount()) + ",";
+    j += "\"messagesReceived\":" + String(statistics.getMessagesReceived()) + ",";
+    j += "\"messagesSent\":" + String(statistics.getMessagesSent()) + ",";
+    j += "\"commandsReceived\":" + String(statistics.getCommandsReceived()) + ",";
+    j += "\"commandsExecuted\":" + String(statistics.getCommandsExecuted()) + ",";
+    j += "\"commandErrors\":" + String(statistics.getCommandErrors()) + ",";
     j += "\"reminderCount\":" + String(reminderManager.getCount()) + ",";
+    j += "\"sdAvailable\":" + String(sdCard.isAvailable() ? "true" : "false") + ",";
+    j += "\"sdTotal\":" + String(sdCard.isAvailable() ? SD.cardSize() : 0) + ",";
+    j += "\"sdUsed\":" + String(sdCard.isAvailable() ? SD.usedBytes() : 0) + ",";
     j += "\"commandRouteCount\":" + String(config.getCommandRouteCount());
     j += "}";
     return j;
