@@ -20,17 +20,9 @@
 unsigned long lastStatisticsSave = 0;
 static const uint32_t WATCHDOG_TIMEOUT_SECONDS = 15;
 
-static String jsonEscape(String v)
-{
-    v.replace("\\", "\\\\");
-    v.replace("\"", "\\\"");
-    v.replace("\n", "\\n");
-    v.replace("\r", "\\r");
-    return v;
-}
+static String jsonEscape(String v){v.replace("\\", "\\\\");v.replace("\"", "\\\"");v.replace("\n", "\\n");v.replace("\r", "\\r");return v;}
 
-static void beginWatchdog()
-{
+static void beginWatchdog(){
 #if ESP_IDF_VERSION_MAJOR >= 5
     esp_task_wdt_config_t configWdt = {};
     configWdt.timeout_ms = WATCHDOG_TIMEOUT_SECONDS * 1000;
@@ -44,156 +36,23 @@ static void beginWatchdog()
     Serial.printf("[WDT] Main loop watched, timeout: %lu s\n", (unsigned long)WATCHDOG_TIMEOUT_SECONDS);
 }
 
-static void streamSd(WebServer& server, const char* path, const char* type)
-{
-    if (!sdCard.isAvailable() || !SD.exists(path))
-    {
-        server.send(404, "text/plain", String("Missing ") + path + " on SD card");
-        return;
-    }
-    File file = SD.open(path, FILE_READ);
-    server.streamFile(file, type);
-    file.close();
-}
+static void streamSd(WebServer& server,const char* path,const char* type){if(!sdCard.isAvailable()||!SD.exists(path)){server.send(404,"text/plain",String("Missing ")+path+" on SD card");return;}File file=SD.open(path,FILE_READ);server.streamFile(file,type);file.close();}
 
-static void setupSdWebExperiment()
-{
-    WebServer& server = webServerManager.rawServer();
-
-    server.on("/sd", HTTP_GET, [&server](){ server.sendHeader("Location", "/sd/"); server.send(303); });
-    server.on("/sd/", HTTP_GET, [&server](){ streamSd(server, "/www/index.html", "text/html; charset=utf-8"); });
-    server.on("/sd/index.html", HTTP_GET, [&server](){ streamSd(server, "/www/index.html", "text/html; charset=utf-8"); });
-    server.on("/sd/settings.html", HTTP_GET, [&server](){ streamSd(server, "/www/settings.html", "text/html; charset=utf-8"); });
-    server.on("/sd/reminders.html", HTTP_GET, [&server](){ streamSd(server, "/www/reminders.html", "text/html; charset=utf-8"); });
-    server.on("/sd/style.css", HTTP_GET, [&server](){ streamSd(server, "/www/style.css", "text/css; charset=utf-8"); });
-    server.on("/sd/app.js", HTTP_GET, [&server](){ streamSd(server, "/www/app.js", "application/javascript; charset=utf-8"); });
-
-    server.on("/api/status", HTTP_GET, [&server]()
-    {
-        uint64_t total = sdCard.isAvailable() ? SD.totalBytes() : 0;
-        uint64_t used = sdCard.isAvailable() ? SD.usedBytes() : 0;
-        String j = "{";
-        j += "\"deviceName\":\"" + jsonEscape(config.getDeviceName()) + "\",";
-        j += "\"linkUp\":" + String(ETH.linkUp() ? "true" : "false") + ",";
-        j += "\"ip\":\"" + ETH.localIP().toString() + "\",";
-        j += "\"gateway\":\"" + ETH.gatewayIP().toString() + "\",";
-        j += "\"linkSpeed\":" + String(ETH.linkSpeed()) + ",";
-        j += "\"fullDuplex\":" + String(ETH.fullDuplex() ? "true" : "false") + ",";
-        j += "\"time\":\"" + jsonEscape(timeManager.getDateTimeString()) + "\",";
-        j += "\"totalUptime\":\"" + statistics.getTotalUptimeString() + "\",";
-        j += "\"currentUptime\":\"" + statistics.getCurrentUptimeString() + "\",";
-        j += "\"bootCount\":" + String(statistics.getBootCount()) + ",";
-        j += "\"errors\":" + String(statistics.getErrors()) + ",";
-        j += "\"messagesReceived\":" + String(statistics.getMessagesReceived()) + ",";
-        j += "\"messagesSent\":" + String(statistics.getMessagesSent()) + ",";
-        j += "\"commandsReceived\":" + String(statistics.getCommandsReceived()) + ",";
-        j += "\"commandsExecuted\":" + String(statistics.getCommandsExecuted()) + ",";
-        j += "\"commandErrors\":" + String(statistics.getCommandErrors()) + ",";
-        j += "\"chatCount\":" + String(config.getChatCount()) + ",";
-        j += "\"reminderCount\":" + String(reminderManager.getCount()) + ",";
-        j += "\"sdAvailable\":" + String(sdCard.isAvailable() ? "true" : "false") + ",";
-        j += "\"sdTotal\":" + String((uint32_t)total) + ",";
-        j += "\"sdUsed\":" + String((uint32_t)used);
-        j += "}";
-        server.send(200, "application/json; charset=utf-8", j);
-    });
-
-    server.on("/api/settings", HTTP_GET, [&server]()
-    {
-        String j = "{";
-        j += "\"deviceName\":\"" + jsonEscape(config.getDeviceName()) + "\",";
-        j += "\"timezone\":\"" + jsonEscape(config.getTimezone()) + "\",";
-        j += "\"ntpServer\":\"" + jsonEscape(config.getNtpServer()) + "\",";
-        j += "\"startupMessageEnabled\":" + String(config.isStartupMessageEnabled() ? "true" : "false") + ",";
-        j += "\"startupMessage\":\"" + jsonEscape(config.getStartupMessage()) + "\",";
-        j += "\"gpio35Enabled\":" + String(config.isGpio35Enabled() ? "true" : "false") + ",";
-        j += "\"gpio35HighMessage\":\"" + jsonEscape(config.getGpio35HighMessage()) + "\",";
-        j += "\"gpio35LowMessage\":\"" + jsonEscape(config.getGpio35LowMessage()) + "\",";
-        j += "\"gpio39Enabled\":" + String(config.isGpio39Enabled() ? "true" : "false") + ",";
-        j += "\"gpio39HighMessage\":\"" + jsonEscape(config.getGpio39HighMessage()) + "\",";
-        j += "\"gpio39LowMessage\":\"" + jsonEscape(config.getGpio39LowMessage()) + "\",";
-        j += "\"chats\":[";
-        for (size_t i = 0; i < config.getChatCount(); i++)
-        {
-            if (i) j += ",";
-            auto c = config.getChat(i);
-            j += "{\"index\":" + String(i) + ",\"id\":\"" + jsonEscape(c.id) + "\",\"name\":\"" + jsonEscape(c.name) + "\"}";
-        }
-        j += "]}";
-        server.send(200, "application/json; charset=utf-8", j);
-    });
-
-    server.on("/api/reminders", HTTP_GET, [&server]()
-    {
-        String j = "{\"count\":" + String(reminderManager.getCount()) + ",\"items\":[";
-        for (size_t i = 0; i < reminderManager.getCount(); i++)
-        {
-            if (i) j += ",";
-            Reminder r = reminderManager.getReminder(i);
-            j += "{\"id\":" + String(r.id) + ",\"message\":\"" + jsonEscape(r.message) + "\",\"chatId\":\"" + jsonEscape(r.chatId) + "\",\"type\":" + String((int)r.type) + ",\"year\":" + String(r.year) + ",\"month\":" + String(r.month) + ",\"day\":" + String(r.day) + ",\"weekday\":" + String(r.weekday) + ",\"hour\":" + String(r.hour) + ",\"minute\":" + String(r.minute) + ",\"enabled\":" + String(r.enabled ? "true" : "false") + ",\"silent\":" + String(r.silent ? "true" : "false") + "}";
-        }
-        j += "]}";
-        server.send(200, "application/json; charset=utf-8", j);
-    });
-
+static void setupSdWebExperiment(){
+    WebServer& server=webServerManager.rawServer();
+    server.on("/sd",HTTP_GET,[&server](){server.sendHeader("Location","/sd/");server.send(303);});
+    server.on("/sd/",HTTP_GET,[&server](){streamSd(server,"/www/index.html","text/html; charset=utf-8");});
+    server.on("/sd/index.html",HTTP_GET,[&server](){streamSd(server,"/www/index.html","text/html; charset=utf-8");});
+    server.on("/sd/settings.html",HTTP_GET,[&server](){streamSd(server,"/www/settings.html","text/html; charset=utf-8");});
+    server.on("/sd/reminders.html",HTTP_GET,[&server](){streamSd(server,"/www/reminders.html","text/html; charset=utf-8");});
+    server.on("/sd/style.css",HTTP_GET,[&server](){streamSd(server,"/www/style.css","text/css; charset=utf-8");});
+    server.on("/sd/app.js",HTTP_GET,[&server](){streamSd(server,"/www/app.js","application/javascript; charset=utf-8");});
+    server.on("/api/status",HTTP_GET,[&server](){uint64_t total=sdCard.isAvailable()?SD.totalBytes():0,used=sdCard.isAvailable()?SD.usedBytes():0;String j="{";j+="\"deviceName\":\""+jsonEscape(config.getDeviceName())+"\",";j+="\"linkUp\":"+String(ETH.linkUp()?"true":"false")+",";j+="\"ip\":\""+ETH.localIP().toString()+"\",";j+="\"gateway\":\""+ETH.gatewayIP().toString()+"\",";j+="\"linkSpeed\":"+String(ETH.linkSpeed())+",";j+="\"fullDuplex\":"+String(ETH.fullDuplex()?"true":"false")+",";j+="\"time\":\""+jsonEscape(timeManager.getDateTimeString())+"\",";j+="\"totalUptime\":\""+statistics.getTotalUptimeString()+"\",";j+="\"currentUptime\":\""+statistics.getCurrentUptimeString()+"\",";j+="\"bootCount\":"+String(statistics.getBootCount())+",";j+="\"errors\":"+String(statistics.getErrors())+",";j+="\"messagesReceived\":"+String(statistics.getMessagesReceived())+",";j+="\"messagesSent\":"+String(statistics.getMessagesSent())+",";j+="\"commandsReceived\":"+String(statistics.getCommandsReceived())+",";j+="\"commandsExecuted\":"+String(statistics.getCommandsExecuted())+",";j+="\"commandErrors\":"+String(statistics.getCommandErrors())+",";j+="\"chatCount\":"+String(config.getChatCount())+",";j+="\"reminderCount\":"+String(reminderManager.getCount())+",";j+="\"sdAvailable\":"+String(sdCard.isAvailable()?"true":"false")+",";j+="\"sdTotal\":"+String((uint32_t)total)+",";j+="\"sdUsed\":"+String((uint32_t)used)+"}";server.send(200,"application/json; charset=utf-8",j);});
+    server.on("/api/settings",HTTP_GET,[&server](){String j="{";j+="\"deviceName\":\""+jsonEscape(config.getDeviceName())+"\",";j+="\"timezone\":\""+jsonEscape(config.getTimezone())+"\",";j+="\"ntpServer\":\""+jsonEscape(config.getNtpServer())+"\",";j+="\"startupMessageEnabled\":"+String(config.isStartupMessageEnabled()?"true":"false")+",";j+="\"startupMessage\":\""+jsonEscape(config.getStartupMessage())+"\",";j+="\"gpio35Enabled\":"+String(config.isGpio35Enabled()?"true":"false")+",";j+="\"gpio35HighMessage\":\""+jsonEscape(config.getGpio35HighMessage())+"\",";j+="\"gpio35LowMessage\":\""+jsonEscape(config.getGpio35LowMessage())+"\",";j+="\"gpio39Enabled\":"+String(config.isGpio39Enabled()?"true":"false")+",";j+="\"gpio39HighMessage\":\""+jsonEscape(config.getGpio39HighMessage())+"\",";j+="\"gpio39LowMessage\":\""+jsonEscape(config.getGpio39LowMessage())+"\",";j+="\"chats\":[";for(size_t i=0;i<config.getChatCount();i++){if(i)j+=",";auto c=config.getChat(i);j+="{\"index\":"+String(i)+",\"id\":\""+jsonEscape(c.id)+"\",\"name\":\""+jsonEscape(c.name)+"\"}";}j+="]}";server.send(200,"application/json; charset=utf-8",j);});
+    server.on("/api/reminders",HTTP_GET,[&server](){String j="{\"count\":"+String(reminderManager.getCount())+",\"items\":[";for(size_t i=0;i<reminderManager.getCount();i++){if(i)j+=",";Reminder r=reminderManager.getReminder(i);j+="{\"id\":"+String(r.id)+",\"message\":\""+jsonEscape(r.message)+"\",\"chatId\":\""+jsonEscape(r.chatId)+"\",\"type\":"+String((int)r.type)+",\"year\":"+String(r.year)+",\"month\":"+String(r.month)+",\"day\":"+String(r.day)+",\"weekday\":"+String(r.weekday)+",\"hour\":"+String(r.hour)+",\"minute\":"+String(r.minute)+",\"enabled\":"+String(r.enabled?"true":"false")+",\"silent\":"+String(r.silent?"true":"false")+"}";}j+="]}";server.send(200,"application/json; charset=utf-8",j);});
     Serial.println("[WEB] SD frontend experiment: /sd/");
 }
 
-void setup()
-{
-    Serial.begin(115200);
-    delay(2000);
-    Serial.println();
-    Serial.println();
-    Serial.println("========================================");
-    Serial.println(DEVICE_NAME);
-    Serial.println("========================================");
+void setup(){Serial.begin(115200);delay(2000);Serial.println();Serial.println();Serial.println("========================================");Serial.println(DEVICE_NAME);Serial.println("========================================");beginWatchdog();statistics.begin();ethernet.begin();sdCard.begin();if(storage.begin()){StatisticsData loadedData;storage.loadStatistics(loadedData);statistics.load(loadedData);statistics.onBoot();storage.saveStatistics(statistics.getData());}config.begin();reminderManager.begin();timeManager.begin();telegram.begin();setupSdWebExperiment();webServerManager.begin();gpioMonitor.begin();ledActivity.begin();Serial.println("[SYSTEM] Initialization complete");esp_task_wdt_reset();}
 
-    beginWatchdog();
-    statistics.begin();
-    ethernet.begin();
-    sdCard.begin();
-
-    if (storage.begin())
-    {
-        StatisticsData loadedData;
-        storage.loadStatistics(loadedData);
-        statistics.load(loadedData);
-        statistics.onBoot();
-        storage.saveStatistics(statistics.getData());
-    }
-
-    config.begin();
-    reminderManager.begin();
-    timeManager.begin();
-    telegram.begin();
-    webServerManager.begin();
-    setupSdWebExperiment();
-    gpioMonitor.begin();
-    ledActivity.begin();
-    Serial.println("[SYSTEM] Initialization complete");
-    esp_task_wdt_reset();
-}
-
-void loop()
-{
-    esp_task_wdt_reset();
-    ethernet.update();
-    timeManager.update();
-    telegram.update();
-    esp_task_wdt_reset();
-    gpioMonitor.update();
-    webServerManager.update();
-    statistics.update();
-    reminderManager.update();
-    ledActivity.update();
-
-    if (sdCard.isAvailable() && millis() - lastStatisticsSave >= STATISTICS_SAVE_INTERVAL)
-    {
-        lastStatisticsSave = millis();
-        Serial.println("[SYSTEM] Statistics checkpoint");
-        storage.saveStatistics(statistics.getData());
-    }
-    esp_task_wdt_reset();
-    delay(1);
-}
+void loop(){esp_task_wdt_reset();ethernet.update();timeManager.update();telegram.update();esp_task_wdt_reset();gpioMonitor.update();webServerManager.update();statistics.update();reminderManager.update();ledActivity.update();if(sdCard.isAvailable()&&millis()-lastStatisticsSave>=STATISTICS_SAVE_INTERVAL){lastStatisticsSave=millis();Serial.println("[SYSTEM] Statistics checkpoint");storage.saveStatistics(statistics.getData());}esp_task_wdt_reset();delay(1);}
