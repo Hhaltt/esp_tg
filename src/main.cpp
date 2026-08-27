@@ -56,7 +56,6 @@ static void streamSd(WebServer& s, const char* path, const char* type)
     f.close();
 }
 
-// Keep this flat structure because the SD frontend consumes these exact keys.
 static String statusJson()
 {
     String j = "{";
@@ -86,15 +85,33 @@ static String statusJson()
     return j;
 }
 
+// Settings frontend uses this single payload. Keep all editable fields here so
+// saving/editing settings does not depend on a second, drifting secrets endpoint.
 static String settingsJson()
 {
-    String j = "{\"deviceName\":\"" + esc(config.getDeviceName()) + "\",\"timezone\":\"" + esc(config.getTimezone()) + "\",\"ntpServer\":\"" + esc(config.getNtpServer()) + "\",\"startupMessageEnabled\":" + String(config.isStartupMessageEnabled() ? "true" : "false") + ",\"startupMessage\":\"" + esc(config.getStartupMessage()) + "\",\"chats\":[";
+    String j = "{";
+    j += "\"deviceName\":\"" + esc(config.getDeviceName()) + "\",";
+    j += "\"timezone\":\"" + esc(config.getTimezone()) + "\",";
+    j += "\"ntpServer\":\"" + esc(config.getNtpServer()) + "\",";
+    j += "\"botToken\":\"" + esc(config.getBotToken()) + "\",";
+    j += "\"hubApiKey\":\"" + esc(config.getHubApiKey()) + "\",";
+    j += "\"startupMessageEnabled\":" + String(config.isStartupMessageEnabled() ? "true" : "false") + ",";
+    j += "\"startupMessage\":\"" + esc(config.getStartupMessage()) + "\",";
+    j += "\"gpio35Enabled\":" + String(config.isGpio35Enabled() ? "true" : "false") + ",";
+    j += "\"gpio35HighMessage\":\"" + esc(config.getGpio35HighMessage()) + "\",";
+    j += "\"gpio35LowMessage\":\"" + esc(config.getGpio35LowMessage()) + "\",";
+    j += "\"gpio39Enabled\":" + String(config.isGpio39Enabled() ? "true" : "false") + ",";
+    j += "\"gpio39HighMessage\":\"" + esc(config.getGpio39HighMessage()) + "\",";
+    j += "\"gpio39LowMessage\":\"" + esc(config.getGpio39LowMessage()) + "\",";
+    j += "\"chats\":[";
+
     for (size_t i = 0; i < config.getChatCount(); i++)
     {
         if (i) j += ",";
         auto c = config.getChat(i);
         j += "{\"index\":" + String(i) + ",\"id\":\"" + esc(c.id) + "\",\"name\":\"" + esc(c.name) + "\"}";
     }
+
     return j + "]}";
 }
 
@@ -105,7 +122,7 @@ static String routesJson()
     {
         if (i) j += ",";
         auto r = config.getCommandRoute(i);
-        j += "{\"index\":" + String(i) + ",\"phrase\":\"" + esc(r.phrase) + "\",\"url\":\"" + esc(r.url) + "\",\"command\":\"" + esc(r.command) + "\"}";
+        j += "{\"index\":" + String(i) + ",\"phrase\":\"" + esc(r.phrase) + "\",\"url\":\"" + esc(r.url) + "\",\"apiKey\":\"" + esc(r.apiKey) + "\",\"command\":\"" + esc(r.command) + "\"}";
     }
     return j + "]}";
 }
