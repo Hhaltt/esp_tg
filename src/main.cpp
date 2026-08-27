@@ -1,25 +1,21 @@
 #include <Arduino.h>
-
 #include <esp_task_wdt.h>
 #include <esp_idf_version.h>
 
 #include "core/Config.h"
 #include "core/Statistics.h"
 #include "core/ConfigManager.h"
-
 #include "network/EthernetManager.h"
 #include "network/WebServerManager.h"
 #include "network/TelegramManager.h"
-
 #include "services/TimeManager.h"
 #include "services/ReminderManager.h"
 #include "services/GpioMonitorManager.h"
-
+#include "services/LedActivityManager.h"
 #include "storage/SDCardManager.h"
 #include "storage/StorageManager.h"
 
 unsigned long lastStatisticsSave = 0;
-
 static const uint32_t WATCHDOG_TIMEOUT_SECONDS = 15;
 
 static void beginWatchdog()
@@ -29,25 +25,17 @@ static void beginWatchdog()
     configWdt.timeout_ms = WATCHDOG_TIMEOUT_SECONDS * 1000;
     configWdt.idle_core_mask = 0;
     configWdt.trigger_panic = true;
-
     esp_err_t result = esp_task_wdt_init(&configWdt);
 #else
     esp_err_t result = esp_task_wdt_init(WATCHDOG_TIMEOUT_SECONDS, true);
 #endif
-
-    if (result == ESP_OK)
-        Serial.println("[WDT] Task watchdog initialized");
-    else if (result == ESP_ERR_INVALID_STATE)
-        Serial.println("[WDT] Task watchdog already initialized");
-    else
-        Serial.printf("[WDT] Init error: %d\n", (int)result);
+    if (result == ESP_OK) Serial.println("[WDT] Task watchdog initialized");
+    else if (result == ESP_ERR_INVALID_STATE) Serial.println("[WDT] Task watchdog already initialized");
+    else Serial.printf("[WDT] Init error: %d\n", (int)result);
 
     result = esp_task_wdt_add(NULL);
-
-    if (result == ESP_OK)
-        Serial.printf("[WDT] Main loop watched, timeout: %lu s\n", (unsigned long)WATCHDOG_TIMEOUT_SECONDS);
-    else if (result != ESP_ERR_INVALID_STATE)
-        Serial.printf("[WDT] Add task error: %d\n", (int)result);
+    if (result == ESP_OK) Serial.printf("[WDT] Main loop watched, timeout: %lu s\n", (unsigned long)WATCHDOG_TIMEOUT_SECONDS);
+    else if (result != ESP_ERR_INVALID_STATE) Serial.printf("[WDT] Add task error: %d\n", (int)result);
 }
 
 void setup()
@@ -62,7 +50,6 @@ void setup()
     Serial.println("========================================");
 
     beginWatchdog();
-
     statistics.begin();
     ethernet.begin();
     sdCard.begin();
@@ -86,6 +73,7 @@ void setup()
     telegram.begin();
     webServerManager.begin();
     gpioMonitor.begin();
+    ledActivity.begin();
 
     Serial.println("[SYSTEM] Initialization complete");
     esp_task_wdt_reset();
@@ -94,7 +82,6 @@ void setup()
 void loop()
 {
     esp_task_wdt_reset();
-
     ethernet.update();
     esp_task_wdt_reset();
 
@@ -106,11 +93,9 @@ void loop()
     webServerManager.update();
     statistics.update();
     reminderManager.update();
+    ledActivity.update();
 
-    if (
-        sdCard.isAvailable()
-        && millis() - lastStatisticsSave >= STATISTICS_SAVE_INTERVAL
-    )
+    if (sdCard.isAvailable() && millis() - lastStatisticsSave >= STATISTICS_SAVE_INTERVAL)
     {
         lastStatisticsSave = millis();
         Serial.println("[SYSTEM] Statistics checkpoint");
