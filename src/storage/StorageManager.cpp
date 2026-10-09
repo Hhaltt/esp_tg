@@ -273,20 +273,21 @@ bool StorageManager::ensureFile(
     }
 
 
-    size_t written =
-        file.print(defaultContent);
+    size_t expected = strlen(defaultContent);
+    size_t written = file.print(defaultContent);
 
-
+    file.flush();
     file.close();
 
-
-    if (written == 0)
+    if (written != expected)
     {
+        SD.remove(path);
         Serial.printf(
-            "[STORAGE] Failed to write default data: %s\n",
-            path
+            "[STORAGE] Incomplete default data write: %s (%u/%u bytes)\n",
+            path,
+            (unsigned)written,
+            (unsigned)expected
         );
-
         return false;
     }
 
