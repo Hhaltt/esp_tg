@@ -82,7 +82,8 @@ void GpioMonitorManager::processQueue()
     queueHead = (queueHead + 1) % QUEUE_CAPACITY;
     --queueCount;
 
-    telegram.sendMessage(item.chatId, item.message);
+    if (config.hasChat(item.chatId))
+        telegram.sendMessage(item.chatId, item.message);
 }
 
 // ============================================================
