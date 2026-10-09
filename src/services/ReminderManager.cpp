@@ -45,7 +45,10 @@ void ReminderManager::update()
         {
             // deleteReminder() shifts the array, therefore do not increment i.
             if (!deleteReminder(id))
+            {
                 Serial.printf("[REMINDERS] Failed to auto-delete #%lu\n", (unsigned long)id);
+                ++i; // Avoid retrying the same failed deletion forever in this loop.
+            }
 
             continue;
         }
