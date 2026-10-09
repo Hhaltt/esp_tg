@@ -59,6 +59,7 @@ uint32_t ReminderManager::addReminder(Reminder reminder)
     if (reminderCount >= MAX_REMINDERS)
         return 0;
 
+    uint32_t previousNextId = nextId;
     reminder.id = nextId++;
     reminder.enabled = true;
     reminder.lastTriggered = 0;
@@ -72,6 +73,7 @@ uint32_t ReminderManager::addReminder(Reminder reminder)
     if (!save())
     {
         reminderCount--;
+        nextId = previousNextId;
         return 0;
     }
 
@@ -92,8 +94,11 @@ bool ReminderManager::updateReminder(const Reminder& reminder)
         updated.nextTrigger = 0;
         updated.lastTriggered = 0;
 
+        Reminder previous = reminders[i];
         reminders[i] = updated;
-        return save();
+        if (save()) return true;
+        reminders[i] = previous;
+        return false;
     }
 
     return false;
@@ -106,11 +111,18 @@ bool ReminderManager::deleteReminder(uint32_t id)
         if (reminders[i].id != id)
             continue;
 
+        Reminder removed = reminders[i];
         for (size_t j = i + 1; j < reminderCount; j++)
             reminders[j - 1] = reminders[j];
 
         reminderCount--;
-        return save();
+        if (save()) return true;
+
+        for (size_t j = reminderCount; j > i; j--)
+            reminders[j] = reminders[j - 1];
+        reminders[i] = removed;
+        reminderCount++;
+        return false;
     }
 
     return false;
@@ -123,6 +135,7 @@ bool ReminderManager::setEnabled(uint32_t id, bool enabled)
         if (reminders[i].id != id)
             continue;
 
+        Reminder previous = reminders[i];
         reminders[i].enabled = enabled;
 
         if (enabled)
@@ -131,7 +144,9 @@ bool ReminderManager::setEnabled(uint32_t id, bool enabled)
             reminders[i].lastTriggered = 0;
         }
 
-        return save();
+        if (save()) return true;
+        reminders[i] = previous;
+        return false;
     }
 
     return false;
