@@ -5,6 +5,28 @@
 
 CommandRouteManager commandRouteManager;
 
+static String formEncode(const String& value)
+{
+    const char hex[] = "0123456789ABCDEF";
+    String encoded;
+    for (size_t i = 0; i < value.length(); ++i)
+    {
+        uint8_t ch = static_cast<uint8_t>(value[i]);
+        if ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') ||
+            (ch >= '0' && ch <= '9') || ch == '-' || ch == '_' || ch == '.' || ch == '*')
+            encoded += static_cast<char>(ch);
+        else if (ch == ' ')
+            encoded += '+';
+        else
+        {
+            encoded += '%';
+            encoded += hex[(ch >> 4) & 0x0F];
+            encoded += hex[ch & 0x0F];
+        }
+    }
+    return encoded;
+}
+
 String CommandRouteManager::normalize(const String& value) const
 {
     String out=value;
@@ -32,7 +54,7 @@ bool CommandRouteManager::execute(const String& phrase, String& reply)
         http.setTimeout(5000);
         http.addHeader("Content-Type","application/x-www-form-urlencoded");
         if(route.apiKey.length())http.addHeader("X-API-Key",route.apiKey);
-        String body="command="+route.command;
+        String body="command="+formEncode(route.command);
         int code=http.POST(body);
         String response=http.getString();
         http.end();
