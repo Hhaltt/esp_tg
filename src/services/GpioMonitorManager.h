@@ -27,8 +27,20 @@ private:
 
 
     unsigned long lastCheck = 0;
+    unsigned long lastSendAttempt = 0;
 
+    struct PendingNotification
+    {
+        String chatId;
+        String message;
+    };
+    static const size_t QUEUE_CAPACITY = 32;
+    PendingNotification pending[QUEUE_CAPACITY];
+    size_t queueHead = 0;
+    size_t queueCount = 0;
 
+    void queueNotification(const String& message);
+    void processQueue();
     void checkPin35();
 
     void checkPin39();
