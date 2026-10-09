@@ -5,8 +5,10 @@
 
 #include "../services/TimeManager.h"
 #include "../network/TelegramManager.h"
+#include "../core/ConfigManager.h"
 
 static const char* REMINDERS_FILE = "/data/reminders.json";
+static const char* REMINDERS_BACKUP_FILE = "/data/reminders.bak";
 
 ReminderManager reminderManager;
 
@@ -166,6 +168,12 @@ bool ReminderManager::checkReminder(Reminder& reminder, time_t now)
 
     if (reminder.nextTrigger == 0)
     {
+        if (reminder.type == ReminderType::ONCE &&
+            calculateNextTrigger(reminder, now) == 0)
+        {
+            Serial.printf("[REMINDERS] Removing expired one-time reminder #%lu\n", (unsigned long)reminder.id);
+            return true;
+        }
         reminder.nextTrigger = calculateNextTrigger(reminder, now);
         save();
         return false;
@@ -232,6 +240,14 @@ time_t ReminderManager::calculateScheduledTime(Reminder& reminder, time_t refere
     return makeLocal(year, month, day, reminder.hour, reminder.minute);
 }
 
+static int daysInMonth(int year, int month)
+{
+    static const int days[] = {31,28,31,30,31,30,31,31,30,31,30,31};
+    if (month < 1 || month > 12) return 31;
+    if (month == 2 && ((year % 4 == 0 && year % 100 != 0) || year % 400 == 0)) return 29;
+    return days[month - 1];
+}
+
 time_t ReminderManager::calculateNextTrigger(Reminder& reminder, time_t fromTime)
 {
     if (reminder.type == ReminderType::ONCE)
@@ -240,52 +256,81 @@ time_t ReminderManager::calculateNextTrigger(Reminder& reminder, time_t fromTime
         return target >= fromTime ? target : 0;
     }
 
-    struct tm t;
-    localtime_r(&fromTime, &t);
+    struct tm current;
+    if (!localtime_r(&fromTime, &current)) return 0;
+    int year = current.tm_year + 1900;
+    int month = current.tm_mon + 1;
 
     if (reminder.type == ReminderType::DAILY)
     {
-        time_t target = makeLocal(t.tm_year + 1900, t.tm_mon + 1, t.tm_mday, reminder.hour, reminder.minute);
+        struct tm targetDate = current;
+        targetDate.tm_hour = reminder.hour;
+        targetDate.tm_min = reminder.minute;
+        targetDate.tm_sec = 0;
+        targetDate.tm_isdst = -1;
+        time_t target = mktime(&targetDate);
         if (target < fromTime)
-            target += 86400;
+        {
+            targetDate.tm_mday += 1;
+            targetDate.tm_hour = reminder.hour;
+            targetDate.tm_min = reminder.minute;
+            targetDate.tm_sec = 0;
+            targetDate.tm_isdst = -1;
+            target = mktime(&targetDate);
+        }
         return target;
     }
 
     if (reminder.type == ReminderType::WEEKLY)
     {
-        int delta = (reminder.weekday - t.tm_wday + 7) % 7;
-        time_t target = makeLocal(t.tm_year + 1900, t.tm_mon + 1, t.tm_mday, reminder.hour, reminder.minute) + delta * 86400;
+        int delta = (reminder.weekday - current.tm_wday + 7) % 7;
+        struct tm targetDate = current;
+        targetDate.tm_mday += delta;
+        targetDate.tm_hour = reminder.hour;
+        targetDate.tm_min = reminder.minute;
+        targetDate.tm_sec = 0;
+        targetDate.tm_isdst = -1;
+        time_t target = mktime(&targetDate);
         if (target < fromTime)
-            target += 7 * 86400;
+        {
+            targetDate.tm_mday += 7;
+            targetDate.tm_hour = reminder.hour;
+            targetDate.tm_min = reminder.minute;
+            targetDate.tm_sec = 0;
+            targetDate.tm_isdst = -1;
+            target = mktime(&targetDate);
+        }
         return target;
     }
 
     if (reminder.type == ReminderType::MONTHLY)
     {
-        int year = t.tm_year + 1900;
-        int month = t.tm_mon + 1;
-        time_t target = makeLocal(year, month, reminder.day, reminder.hour, reminder.minute);
-
+        int maxDay = daysInMonth(year, month);
+        int day = reminder.day < maxDay ? reminder.day : maxDay;
+        time_t target = makeLocal(year, month, day, reminder.hour, reminder.minute);
         if (target < fromTime)
         {
             month++;
-            if (month > 12)
-            {
-                month = 1;
-                year++;
-            }
-            target = makeLocal(year, month, reminder.day, reminder.hour, reminder.minute);
+            if (month > 12) { month = 1; year++; }
+            maxDay = daysInMonth(year, month);
+            day = reminder.day < maxDay ? reminder.day : maxDay;
+            target = makeLocal(year, month, day, reminder.hour, reminder.minute);
         }
-
         return target;
     }
 
     if (reminder.type == ReminderType::YEARLY)
     {
-        int year = t.tm_year + 1900;
-        time_t target = makeLocal(year, reminder.month, reminder.day, reminder.hour, reminder.minute);
+        int maxDay = daysInMonth(year, reminder.month);
+        int day = reminder.day < maxDay ? reminder.day : maxDay;
+        time_t target = makeLocal(year, reminder.month, day, reminder.hour, reminder.minute);
         if (target < fromTime)
-            target = makeLocal(year + 1, reminder.month, reminder.day, reminder.hour, reminder.minute);
+        {
+            year++;
+            maxDay = daysInMonth(year, reminder.month);
+            day = reminder.day < maxDay ? reminder.day : maxDay;
+            target = makeLocal(year, reminder.month, day, reminder.hour, reminder.minute);
+        }
         return target;
     }
 
@@ -320,6 +365,9 @@ ReminderType ReminderManager::stringToType(const String& type) const
 
 bool ReminderManager::load()
 {
+    if (!SD.exists(REMINDERS_FILE) && SD.exists(REMINDERS_BACKUP_FILE))
+        SD.rename(REMINDERS_BACKUP_FILE, REMINDERS_FILE);
+
     if (!SD.exists(REMINDERS_FILE))
     {
         JsonDocument doc;
@@ -421,8 +469,26 @@ bool ReminderManager::save()
         return false;
     }
 
-    if (SD.exists(REMINDERS_FILE) && !SD.remove(REMINDERS_FILE))
+    if (SD.exists(REMINDERS_BACKUP_FILE) && !SD.remove(REMINDERS_BACKUP_FILE))
+    {
+        SD.remove(tempFile);
         return false;
+    }
 
-    return SD.rename(tempFile, REMINDERS_FILE);
+    bool hadOriginal = SD.exists(REMINDERS_FILE);
+    if (hadOriginal && !SD.rename(REMINDERS_FILE, REMINDERS_BACKUP_FILE))
+    {
+        SD.remove(tempFile);
+        return false;
+    }
+
+    if (!SD.rename(tempFile, REMINDERS_FILE))
+    {
+        if (hadOriginal) SD.rename(REMINDERS_BACKUP_FILE, REMINDERS_FILE);
+        SD.remove(tempFile);
+        return false;
+    }
+
+    if (SD.exists(REMINDERS_BACKUP_FILE)) SD.remove(REMINDERS_BACKUP_FILE);
+    return true;
 }
