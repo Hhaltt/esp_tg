@@ -47,6 +47,7 @@ public:
 private:
 
     bool timeValid = false;
+    String appliedTimezone;
 
 
     // --------------------------------------------------------
