@@ -93,8 +93,6 @@ static String settingsJson()
     j += "\"deviceName\":\"" + esc(config.getDeviceName()) + "\",";
     j += "\"timezone\":\"" + esc(config.getTimezone()) + "\",";
     j += "\"ntpServer\":\"" + esc(config.getNtpServer()) + "\",";
-    j += "\"botToken\":\"" + esc(config.getBotToken()) + "\",";
-    j += "\"hubApiKey\":\"" + esc(config.getHubApiKey()) + "\",";
     j += "\"startupMessageEnabled\":" + String(config.isStartupMessageEnabled() ? "true" : "false") + ",";
     j += "\"startupMessage\":\"" + esc(config.getStartupMessage()) + "\",";
     j += "\"gpio35Enabled\":" + String(config.isGpio35Enabled() ? "true" : "false") + ",";
@@ -122,7 +120,7 @@ static String routesJson()
     {
         if (i) j += ",";
         auto r = config.getCommandRoute(i);
-        j += "{\"index\":" + String(i) + ",\"phrase\":\"" + esc(r.phrase) + "\",\"url\":\"" + esc(r.url) + "\",\"apiKey\":\"" + esc(r.apiKey) + "\",\"command\":\"" + esc(r.command) + "\"}";
+        j += "{\"index\":" + String(i) + ",\"phrase\":\"" + esc(r.phrase) + "\",\"url\":\"" + esc(r.url) + "\",\"command\":\"" + esc(r.command) + "\"}";
     }
     return j + "]}";
 }
