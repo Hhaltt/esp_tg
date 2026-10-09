@@ -51,10 +51,39 @@ void GpioMonitorManager::update()
 
 
     checkPin35();
-
     checkPin39();
+    processQueue();
 }
 
+
+void GpioMonitorManager::queueNotification(const String& message)
+{
+    for (size_t i = 0; i < config.getChatCount(); ++i)
+    {
+        if (queueCount >= QUEUE_CAPACITY)
+        {
+            Serial.println("[GPIO] Notification queue full; dropping message");
+            return;
+        }
+        TelegramChatConfig chat = config.getChat(i);
+        size_t tail = (queueHead + queueCount) % QUEUE_CAPACITY;
+        pending[tail].chatId = chat.id;
+        pending[tail].message = message;
+        ++queueCount;
+    }
+}
+
+void GpioMonitorManager::processQueue()
+{
+    if (!queueCount || millis() - lastSendAttempt < 250) return;
+    lastSendAttempt = millis();
+
+    PendingNotification item = pending[queueHead];
+    queueHead = (queueHead + 1) % QUEUE_CAPACITY;
+    --queueCount;
+
+    telegram.sendMessage(item.chatId, item.message);
+}
 
 // ============================================================
 // GPIO 35
@@ -155,15 +184,7 @@ void GpioMonitorManager::checkPin35()
     }
 
 
-    // Send the notification to every chat configured on the SD card.
-    for (size_t i = 0; i < config.getChatCount(); ++i)
-    {
-        TelegramChatConfig chat = config.getChat(i);
-        telegram.sendMessage(
-            chat.id,
-            message
-        );
-    }
+    queueNotification(message);
 }
 
 
@@ -266,13 +287,5 @@ void GpioMonitorManager::checkPin39()
     }
 
 
-    // Send the notification to every chat configured on the SD card.
-    for (size_t i = 0; i < config.getChatCount(); ++i)
-    {
-        TelegramChatConfig chat = config.getChat(i);
-        telegram.sendMessage(
-            chat.id,
-            message
-        );
-    }
+    queueNotification(message);
 }
