@@ -22,7 +22,7 @@ void TimeManager::update()
         setenv("TZ", posixTimezone.c_str(), 1);
         tzset();
         appliedTimezone = timezone;
-        Serial.printf("[TIME] Timezone set: %s\\n", timezone.c_str());
+        Serial.printf("[TIME] Timezone set: %s\n", timezone.c_str());
     }
 
     if (!ethernet.isConnected()) return;
