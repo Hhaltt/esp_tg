@@ -15,7 +15,7 @@ UniversalTelegramBot bot(BOT_TOKEN, telegramClient);
 TelegramManager telegram;
 
 bool TelegramManager::reloadToken(){String token=config.getBotToken();token.trim();if(!token.length())return false;bot.updateToken(token);bot.last_message_received=0;lastCheck=0;started=ethernet.isConnected();Serial.println("[TG] Telegram token reloaded");return true;}
-void TelegramManager::begin(){telegramClient.setInsecure();if(!reloadToken())Serial.println("[TG] Telegram token is empty");Serial.println("[TG] Telegram initialized");}
+void TelegramManager::begin(){telegramClient.setInsecure();telegramClient.setTimeout(5000);if(!reloadToken())Serial.println("[TG] Telegram token is empty");Serial.println("[TG] Telegram initialized");}
 void TelegramManager::update(){if(!ethernet.isConnected()){started=false;return;}if(!started){started=true;Serial.println("[TG] Telegram ready");sendStartupMessage();}if(millis()-lastCheck>=TELEGRAM_CHECK_INTERVAL){lastCheck=millis();checkMessages();}}
 void TelegramManager::sendStartupMessage(){if(startupMessageSent||!config.isStartupMessageEnabled())return;String message=config.getStartupMessage();message.trim();if(!message.length()||!config.getChatCount())return;for(size_t i=0;i<config.getChatCount();++i){TelegramChatConfig chat=config.getChat(i);sendMessage(chat.id,message);}startupMessageSent=true;}
 void TelegramManager::checkMessages(){int count=bot.getUpdates(bot.last_message_received+1);while(count>0){for(int i=0;i<count;i++)handleMessage(i);count=bot.getUpdates(bot.last_message_received+1);}}
