@@ -181,6 +181,18 @@ bool ReminderManager::checkReminder(Reminder& reminder, time_t now)
     if (!reminder.enabled)
         return false;
 
+    // Do not deliver a one-time reminder from a previous calendar day after downtime.
+    if (reminder.type == ReminderType::ONCE && reminder.lastTriggered == 0 && reminder.nextTrigger > 0)
+    {
+        struct tm scheduledDate, currentDate;
+        if (localtime_r(&reminder.nextTrigger, &scheduledDate) && localtime_r(&now, &currentDate))
+        {
+            if (scheduledDate.tm_year < currentDate.tm_year ||
+                (scheduledDate.tm_year == currentDate.tm_year && scheduledDate.tm_yday < currentDate.tm_yday))
+                return true;
+        }
+    }
+
     if (reminder.nextTrigger == 0)
     {
         if (reminder.type == ReminderType::ONCE &&
