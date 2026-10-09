@@ -12,13 +12,14 @@ void TimeManager::update()
 {
     String timezone = config.getTimezone();
     if (!timezone.length()) timezone = "Europe/Kyiv";
+    String posixTimezone = timezone;
+    if (timezone == "Europe/Kyiv" || timezone == "Europe/Kiev")
+        posixTimezone = "EET-2EEST,M3.5.0/3,M10.5.0/4";
+    else if (timezone == "UTC" || timezone == "Etc/UTC")
+        posixTimezone = "UTC0";
+
     if (timezone != appliedTimezone)
     {
-        String posixTimezone = timezone;
-        if (timezone == "Europe/Kyiv" || timezone == "Europe/Kiev")
-            posixTimezone = "EET-2EEST,M3.5.0/3,M10.5.0/4";
-        else if (timezone == "UTC" || timezone == "Etc/UTC")
-            posixTimezone = "UTC0";
         setenv("TZ", posixTimezone.c_str(), 1);
         tzset();
         appliedTimezone = timezone;
@@ -34,6 +35,9 @@ void TimeManager::update()
     if (!server.length()) server = NTP_SERVER_1;
     // The TZ environment controls local time and DST; NTP only sets UTC.
     configTime(0, 0, server.c_str(), NTP_SERVER_2);
+    // configTime may reset TZ on some Arduino-ESP32 versions; reapply the configured rule.
+    setenv("TZ", posixTimezone.c_str(), 1);
+    tzset();
     struct tm t;
     if (getLocalTime(&t, 5000))
     {
