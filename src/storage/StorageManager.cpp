@@ -1,6 +1,7 @@
 #include "StorageManager.h"
 
 #include <SD.h>
+#include <string.h>
 
 #include <ArduinoJson.h>
 
