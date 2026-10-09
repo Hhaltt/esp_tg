@@ -1,5 +1,6 @@
 #include "TimeManager.h"
 #include <time.h>
+#include <stdlib.h>
 #include "../core/Config.h"
 #include "../core/ConfigManager.h"
 #include "../network/EthernetManager.h"
