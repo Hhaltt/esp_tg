@@ -155,10 +155,15 @@ void GpioMonitorManager::checkPin35()
     }
 
 
-    telegram.sendMessage(
-        TELEGRAM_CHAT_ID,
-        message
-    );
+    // Send the notification to every chat configured on the SD card.
+    for (size_t i = 0; i < config.getChatCount(); ++i)
+    {
+        TelegramChatConfig chat = config.getChat(i);
+        telegram.sendMessage(
+            chat.id,
+            message
+        );
+    }
 }
 
 
@@ -261,8 +266,13 @@ void GpioMonitorManager::checkPin39()
     }
 
 
-    telegram.sendMessage(
-        TELEGRAM_CHAT_ID,
-        message
-    );
+    // Send the notification to every chat configured on the SD card.
+    for (size_t i = 0; i < config.getChatCount(); ++i)
+    {
+        TelegramChatConfig chat = config.getChat(i);
+        telegram.sendMessage(
+            chat.id,
+            message
+        );
+    }
 }
