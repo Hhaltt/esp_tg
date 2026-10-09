@@ -474,11 +474,12 @@ bool ReminderManager::save()
     if (!file)
         return false;
 
+    size_t expected = measureJsonPretty(doc);
     size_t written = serializeJsonPretty(doc, file);
     file.flush();
     file.close();
 
-    if (!written)
+    if (written != expected)
     {
         SD.remove(tempFile);
         return false;
