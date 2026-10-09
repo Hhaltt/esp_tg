@@ -56,6 +56,15 @@ static void streamSd(WebServer& s, const char* path, const char* type)
     f.close();
 }
 
+static bool adminApiAllowed(WebServer& s)
+{
+    String key = config.getHubApiKey();
+    if (!key.length()) return true;
+    if (s.header("X-API-Key") == key) return true;
+    s.send(403, "application/json; charset=utf-8", "{\"ok\":false,\"message\":\"Admin API key required\"}");
+    return false;
+}
+
 static String statusJson()
 {
     String j = "{";
@@ -163,9 +172,9 @@ static void setupSd()
     s.on("/sd/app.js", HTTP_GET, [&s]() { streamSd(s, "/www/app.js", "application/javascript; charset=utf-8"); });
 
     s.on("/api/status", HTTP_GET, [&s]() { s.send(200, "application/json", statusJson()); });
-    s.on("/api/settings", HTTP_GET, [&s]() { s.send(200, "application/json", settingsJson()); });
-    s.on("/api/reminders", HTTP_GET, [&s]() { s.send(200, "application/json", remindersJson()); });
-    s.on("/api/commands", HTTP_GET, [&s]() { s.send(200, "application/json", routesJson()); });
+    s.on("/api/settings", HTTP_GET, [&s]() { if (!adminApiAllowed(s)) return; s.send(200, "application/json", settingsJson()); });
+    s.on("/api/reminders", HTTP_GET, [&s]() { if (!adminApiAllowed(s)) return; s.send(200, "application/json", remindersJson()); });
+    s.on("/api/commands", HTTP_GET, [&s]() { if (!adminApiAllowed(s)) return; s.send(200, "application/json", routesJson()); });
     s.on("/api/v1/status", HTTP_GET, [&s]() { s.send(200, "application/json", statusJson()); });
     s.on("/api/v1/chats", HTTP_GET, [&s]() { s.send(200, "application/json", chatsJson()); });
 }
