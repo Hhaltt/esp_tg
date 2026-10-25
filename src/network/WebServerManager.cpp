@@ -59,9 +59,21 @@ void WebServerManager::handleHubTelegramSend()
     const bool hasJson = parseApiBody(server, doc);
     String chatId = hasJson ? String(doc["chatId"] | "") : server.arg("chatId");
     String message = hasJson ? String(doc["text"] | "") : server.arg("text");
-    bool silent = hasJson
-        ? (doc["silent"].is<bool>() ? doc["silent"].as<bool>() : String(doc["silent"] | "") == "true")
-        : (server.arg("silent") == "1" || server.arg("silent") == "true");
+    bool silent = false;
+    if (hasJson)
+    {
+        if (doc["silent"].is<bool>())
+            silent = doc["silent"].as<bool>();
+        else
+        {
+            String silentValue = doc["silent"] | "";
+            silent = silentValue == "1" || silentValue == "true";
+        }
+    }
+    else
+    {
+        silent = server.arg("silent") == "1" || server.arg("silent") == "true";
+    }
 
     chatId.trim();
     message.trim();
