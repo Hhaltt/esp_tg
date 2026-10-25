@@ -10,6 +10,6 @@ private:
     void handleSaveSettings(); void handleAddChat(); void handleUpdateChat(); void handleDeleteChat();
     void handleAddCommandRoute(); void handleEditCommandRoute(); void handleDeleteCommandRoute();
     void handleAddReminder(); void handleUpdateReminder(); void handleCloneReminder(); void handleDeleteReminder(); void handleToggleReminder();
-    void handleHubTelegramSend(); void handleNotFound();
+    void handleHubTelegramSend(); void handleHubCommandExecute(); void handleNotFound();
 };
 extern WebServerManager webServerManager;
