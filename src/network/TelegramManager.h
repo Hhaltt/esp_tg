@@ -23,6 +23,7 @@ private:
     bool started = false;
     bool startupMessageSent = false;
     unsigned long lastCheck = 0;
+    size_t startupChatIndex = 0;
 
     void checkMessages();
     void handleMessage(int messageIndex);
