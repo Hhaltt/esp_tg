@@ -14,9 +14,9 @@ namespace {
 bool sendTelegramMessageWithDiagnostics(const String& token, JsonObject payload) {
   WiFiClientSecure client;
   client.setInsecure();
-  client.setTimeout(5000);
+  client.setTimeout(1000);
 
-  if (!client.connect("api.telegram.org", 443)) {
+  if (!client.connect("api.telegram.org", 443, 5000)) {
     Serial.println("[TG] Send failed: TLS connection to api.telegram.org:443 failed");
     client.stop();
     return false;
@@ -44,15 +44,29 @@ bool sendTelegramMessageWithDiagnostics(const String& token, JsonObject payload)
     if (firstSpace >= 0) httpStatus = statusLine.substring(firstSpace + 1).toInt();
   }
 
-  // Skip HTTP headers without logging request or sensitive data.
-  while (client.connected() || client.available()) {
-    String header = client.readStringUntil('\n');
-    if (header == "\r" || header.length() == 0) break;
+  // Consume headers with a total deadline; a stalled peer must not starve loop().
+  unsigned long headersStartedAt = millis();
+  uint8_t headerTerminator = 0;
+  while ((client.connected() || client.available()) &&
+         millis() - headersStartedAt < 2000 &&
+         headerTerminator < 4) {
+    if (!client.available()) {
+      delay(1);
+      continue;
+    }
+
+    char ch = static_cast<char>(client.read());
+    if ((headerTerminator == 0 || headerTerminator == 2) && ch == '\r')
+      ++headerTerminator;
+    else if ((headerTerminator == 1 || headerTerminator == 3) && ch == '\n')
+      ++headerTerminator;
+    else
+      headerTerminator = ch == '\r' ? 1 : 0;
   }
 
   String response;
   unsigned long startedAt = millis();
-  while ((client.connected() || client.available()) && millis() - startedAt < 6000) {
+  while ((client.connected() || client.available()) && millis() - startedAt < 4000) {
     while (client.available()) {
       response += static_cast<char>(client.read());
       if (response.length() >= 2048) break;
@@ -95,8 +109,66 @@ TelegramManager telegram;
 
 bool TelegramManager::reloadToken(){String token=config.getBotToken();token.trim();if(!token.length())return false;bot.updateToken(token);bot.last_message_received=0;lastCheck=0;started=ethernet.isConnected();Serial.println("[TG] Telegram token reloaded");return true;}
 void TelegramManager::begin(){telegramClient.setInsecure();telegramClient.setTimeout(5000);if(!reloadToken())Serial.println("[TG] Telegram token is empty");Serial.println("[TG] Telegram initialized");}
-void TelegramManager::update(){if(!ethernet.isConnected()){started=false;return;}if(!started){started=true;Serial.println("[TG] Telegram ready");sendStartupMessage();}if(millis()-lastCheck>=TELEGRAM_CHECK_INTERVAL){lastCheck=millis();checkMessages();}}
-void TelegramManager::sendStartupMessage(){if(startupMessageSent||!config.isStartupMessageEnabled())return;String message=config.getStartupMessage();message.trim();if(!message.length()||!config.getChatCount())return;bool allSent=true;for(size_t i=0;i<config.getChatCount();++i){TelegramChatConfig chat=config.getChat(i);if(!sendMessage(chat.id,message))allSent=false;}startupMessageSent=allSent;}
+void TelegramManager::update()
+{
+    if (!ethernet.isConnected())
+    {
+        started = false;
+        return;
+    }
+
+    if (!started)
+    {
+        started = true;
+        Serial.println("[TG] Telegram ready");
+    }
+
+    // Send startup notices one per loop iteration. A multi-chat burst can keep
+    // the main task busy long enough to trip the task watchdog.
+    if (!startupMessageSent)
+    {
+        sendStartupMessage();
+        return;
+    }
+
+    if (millis() - lastCheck >= TELEGRAM_CHECK_INTERVAL)
+    {
+        lastCheck = millis();
+        checkMessages();
+    }
+}
+
+void TelegramManager::sendStartupMessage()
+{
+    if (startupMessageSent)
+        return;
+    if (!config.isStartupMessageEnabled() || !config.getChatCount())
+    {
+        startupMessageSent = true;
+        return;
+    }
+
+    String message = config.getStartupMessage();
+    message.trim();
+    if (!message.length())
+    {
+        startupMessageSent = true;
+        return;
+    }
+
+    if (startupChatIndex >= config.getChatCount())
+    {
+        startupMessageSent = true;
+        return;
+    }
+
+    TelegramChatConfig chat = config.getChat(startupChatIndex++);
+    // Treat startup notices as best-effort; a failed network send must not
+    // restart the entire sequence on every pass through loop().
+    sendMessage(chat.id, message);
+    if (startupChatIndex >= config.getChatCount())
+        startupMessageSent = true;
+}
 void TelegramManager::checkMessages()
 {
     // UniversalTelegramBot is configured for one message per poll. Process only
