@@ -184,7 +184,7 @@ void setup()
 {
     Serial.begin(115200);
     delay(2000);
-    Serial.printf("[BOOT] Previous reset reason: %d\\n", (int)esp_reset_reason());
+    Serial.printf("[BOOT] Previous reset reason: %d\n", (int)esp_reset_reason());
     statistics.begin();
     ethernet.begin();
     sdCard.begin();
