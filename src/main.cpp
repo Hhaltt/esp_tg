@@ -41,7 +41,7 @@ static void beginWatchdog()
     esp_task_wdt_init(WATCHDOG_TIMEOUT_SECONDS, true);
 #endif
     esp_task_wdt_add(NULL);
-    Serial.printf("[WDT] Main loop watched, timeout: %lu s\n", (unsigned long)WATCHDOG_TIMEOUT_SECONDS);
+    ;
 }
 
 static void streamSd(WebServer& s, const char* path, const char* type)
@@ -66,6 +66,24 @@ static bool adminApiAllowed(WebServer& s)
     return false;
 }
 
+static const char* resetReasonName()
+{
+    switch (esp_reset_reason())
+    {
+        case ESP_RST_POWERON: return "Power on";
+        case ESP_RST_EXT: return "External reset";
+        case ESP_RST_SW: return "Software reset";
+        case ESP_RST_PANIC: return "Panic";
+        case ESP_RST_INT_WDT: return "Interrupt watchdog";
+        case ESP_RST_TASK_WDT: return "Task watchdog";
+        case ESP_RST_WDT: return "Other watchdog";
+        case ESP_RST_DEEPSLEEP: return "Deep sleep";
+        case ESP_RST_BROWNOUT: return "Brownout";
+        case ESP_RST_SDIO: return "SDIO reset";
+        default: return "Unknown";
+    }
+}
+
 static String statusJson()
 {
     String j = "{";
@@ -79,6 +97,7 @@ static String statusJson()
     j += "\"totalUptime\":\"" + statistics.getTotalUptimeString() + "\",";
     j += "\"currentUptime\":\"" + statistics.getCurrentUptimeString() + "\",";
     j += "\"bootCount\":" + String(statistics.getBootCount()) + ",";
+    j += "\"resetReason\":\"" + resetReasonName() + "\",";
     j += "\"errors\":" + String(statistics.getErrors()) + ",";
     j += "\"chatCount\":" + String(config.getChatCount()) + ",";
     j += "\"messagesReceived\":" + String(statistics.getMessagesReceived()) + ",";
@@ -182,9 +201,9 @@ static void setupSd()
 
 void setup()
 {
-    Serial.begin(115200);
+    ;
     delay(2000);
-    Serial.printf("[BOOT] Previous reset reason: %d\n", (int)esp_reset_reason());
+    ;
     statistics.begin();
     ethernet.begin();
     sdCard.begin();
@@ -206,7 +225,7 @@ void setup()
     webServerManager.begin();
     gpioMonitor.begin();
     ledActivity.begin();
-    Serial.println("[SYSTEM] Initialization complete");
+    ;
 
     // Setup can block while Ethernet, SD, and services initialize. Start the
     // loop watchdog only after setup has completed to avoid rebooting at boot.

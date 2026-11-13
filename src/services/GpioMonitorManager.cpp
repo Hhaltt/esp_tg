@@ -27,9 +27,7 @@ void GpioMonitorManager::begin()
     );
 
 
-    Serial.println(
-        "[GPIO] Monitor initialized"
-    );
+    ;
 }
 
 
@@ -62,7 +60,7 @@ void GpioMonitorManager::queueNotification(const String& message)
     {
         if (queueCount >= QUEUE_CAPACITY)
         {
-            Serial.println("[GPIO] Notification queue full; dropping message");
+            ;
             return;
         }
         TelegramChatConfig chat = config.getChat(i);
@@ -117,15 +115,9 @@ void GpioMonitorManager::checkPin35()
         pin35Initialized = true;
 
 
-        Serial.print(
-            "[GPIO] GPIO35 initial state: "
-        );
+        ;
 
-        Serial.println(
-            state
-                ? "HIGH"
-                : "LOW"
-        );
+        ;
 
         return;
     }
@@ -144,15 +136,9 @@ void GpioMonitorManager::checkPin35()
     pin35State = state;
 
 
-    Serial.print(
-        "[GPIO] GPIO35 changed to "
-    );
+    ;
 
-    Serial.println(
-        state
-            ? "HIGH"
-            : "LOW"
-    );
+    ;
 
 
     // --------------------------------------------------------
@@ -220,15 +206,9 @@ void GpioMonitorManager::checkPin39()
         pin39Initialized = true;
 
 
-        Serial.print(
-            "[GPIO] GPIO39 initial state: "
-        );
+        ;
 
-        Serial.println(
-            state
-                ? "HIGH"
-                : "LOW"
-        );
+        ;
 
         return;
     }
@@ -247,15 +227,9 @@ void GpioMonitorManager::checkPin39()
     pin39State = state;
 
 
-    Serial.print(
-        "[GPIO] GPIO39 changed to "
-    );
+    ;
 
-    Serial.println(
-        state
-            ? "HIGH"
-            : "LOW"
-    );
+    ;
 
 
     // --------------------------------------------------------

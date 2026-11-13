@@ -76,16 +76,12 @@ StorageManager storage;
 
 bool StorageManager::begin()
 {
-    Serial.println(
-        "[STORAGE] Initializing..."
-    );
+    ;
 
 
     if (!sdCard.isAvailable())
     {
-        Serial.println(
-            "[STORAGE] SD card unavailable"
-        );
+        ;
 
         return false;
     }
@@ -97,9 +93,7 @@ bool StorageManager::begin()
 
     if (!ensureDirectory(DATA_DIR))
     {
-        Serial.println(
-            "[STORAGE] Failed to create data directory"
-        );
+        ;
 
         return false;
     }
@@ -158,9 +152,7 @@ bool StorageManager::begin()
     ready = true;
 
 
-    Serial.println(
-        "[STORAGE] Ready"
-    );
+    ;
 
     return true;
 }
@@ -183,10 +175,7 @@ bool StorageManager::ensureDirectory(
 
         if (!dir)
         {
-            Serial.printf(
-                "[STORAGE] Failed to open: %s\n",
-                path
-            );
+            ;
 
             return false;
         }
@@ -198,18 +187,12 @@ bool StorageManager::ensureDirectory(
 
         if (!isDirectory)
         {
-            Serial.printf(
-                "[STORAGE] ERROR: %s exists but is not a directory\n",
-                path
-            );
+            ;
 
             return false;
         }
 
-        Serial.printf(
-            "[STORAGE] Directory exists: %s\n",
-            path
-        );
+        ;
 
         return true;
     }
@@ -219,19 +202,13 @@ bool StorageManager::ensureDirectory(
 
     if (!SD.mkdir(path))
     {
-        Serial.printf(
-            "[STORAGE] Failed to create directory: %s\n",
-            path
-        );
+        ;
 
         return false;
     }
 
 
-    Serial.printf(
-        "[STORAGE] Directory created: %s\n",
-        path
-    );
+    ;
 
     return true;
 }
@@ -248,10 +225,7 @@ bool StorageManager::ensureFile(
 {
     if (SD.exists(path))
     {
-        Serial.printf(
-            "[STORAGE] File exists: %s\n",
-            path
-        );
+        ;
 
         return true;
     }
@@ -265,10 +239,7 @@ bool StorageManager::ensureFile(
 
     if (!file)
     {
-        Serial.printf(
-            "[STORAGE] Failed to create: %s\n",
-            path
-        );
+        ;
 
         return false;
     }
@@ -283,20 +254,12 @@ bool StorageManager::ensureFile(
     if (written != expected)
     {
         SD.remove(path);
-        Serial.printf(
-            "[STORAGE] Incomplete default data write: %s (%u/%u bytes)\n",
-            path,
-            (unsigned)written,
-            (unsigned)expected
-        );
+        ;
         return false;
     }
 
 
-    Serial.printf(
-        "[STORAGE] Created: %s\n",
-        path
-    );
+    ;
 
     return true;
 }
@@ -319,9 +282,7 @@ bool StorageManager::loadStatistics(
 
     if (!ready)
     {
-        Serial.println(
-            "[STORAGE] Not ready"
-        );
+        ;
 
         return false;
     }
@@ -350,41 +311,27 @@ bool StorageManager::loadStatistics(
         );
 
 
-    Serial.println(
-        "[STORAGE] Statistics status:"
-    );
+    ;
 
 
-    Serial.printf(
-        "[STORAGE] A: %s",
-        validA ? "VALID" : "INVALID"
-    );
+    ;
 
     if (validA)
     {
-        Serial.printf(
-            " | seq=%lu",
-            (unsigned long)sequenceA
-        );
+        ;
     }
 
-    Serial.println();
+    ;
 
 
-    Serial.printf(
-        "[STORAGE] B: %s",
-        validB ? "VALID" : "INVALID"
-    );
+    ;
 
     if (validB)
     {
-        Serial.printf(
-            " | seq=%lu",
-            (unsigned long)sequenceB
-        );
+        ;
     }
 
-    Serial.println();
+    ;
 
 
     // --------------------------------------------------------
@@ -393,13 +340,9 @@ bool StorageManager::loadStatistics(
 
     if (!validA && !validB)
     {
-        Serial.println(
-            "[STORAGE] No valid statistics found"
-        );
+        ;
 
-        Serial.println(
-            "[STORAGE] Creating initial statistics"
-        );
+        ;
 
 
         activeSlot = 0;
@@ -429,9 +372,7 @@ bool StorageManager::loadStatistics(
 
         activeSequence = sequenceA;
 
-        Serial.println(
-            "[STORAGE] Using slot A"
-        );
+        ;
 
         return true;
     }
@@ -449,9 +390,7 @@ bool StorageManager::loadStatistics(
 
         activeSequence = sequenceB;
 
-        Serial.println(
-            "[STORAGE] Using slot B"
-        );
+        ;
 
         return true;
     }
@@ -469,9 +408,7 @@ bool StorageManager::loadStatistics(
 
         activeSequence = sequenceA;
 
-        Serial.println(
-            "[STORAGE] Using newest slot A"
-        );
+        ;
     }
     else
     {
@@ -481,9 +418,7 @@ bool StorageManager::loadStatistics(
 
         activeSequence = sequenceB;
 
-        Serial.println(
-            "[STORAGE] Using newest slot B"
-        );
+        ;
     }
 
 
@@ -532,11 +467,7 @@ bool StorageManager::saveStatistics(
     }
 
 
-    Serial.printf(
-        "[STORAGE] Saving statistics: slot %c, seq=%lu\n",
-        newActiveSlot,
-        (unsigned long)newSequence
-    );
+    ;
 
 
     bool success =
@@ -549,9 +480,7 @@ bool StorageManager::saveStatistics(
 
     if (!success)
     {
-        Serial.println(
-            "[STORAGE] Statistics save FAILED"
-        );
+        ;
 
         return false;
     }
@@ -567,9 +496,7 @@ bool StorageManager::saveStatistics(
         newSequence;
 
 
-    Serial.println(
-        "[STORAGE] Statistics saved OK"
-    );
+    ;
 
     return true;
 }
@@ -610,10 +537,7 @@ bool StorageManager::readStatisticsSlot(
         != sizeof(StatisticsFile)
     )
     {
-        Serial.printf(
-            "[STORAGE] Invalid file size: %s\n",
-            path
-        );
+        ;
 
         file.close();
 
@@ -649,10 +573,7 @@ bool StorageManager::readStatisticsSlot(
         != STATS_MAGIC
     )
     {
-        Serial.printf(
-            "[STORAGE] Invalid magic: %s\n",
-            path
-        );
+        ;
 
         return false;
     }
@@ -667,10 +588,7 @@ bool StorageManager::readStatisticsSlot(
         != STATS_VERSION
     )
     {
-        Serial.printf(
-            "[STORAGE] Invalid version: %s\n",
-            path
-        );
+        ;
 
         return false;
     }
@@ -695,10 +613,7 @@ bool StorageManager::readStatisticsSlot(
         != record.crc
     )
     {
-        Serial.printf(
-            "[STORAGE] CRC error: %s\n",
-            path
-        );
+        ;
 
         return false;
     }
@@ -779,9 +694,7 @@ bool StorageManager::writeStatisticsSlot(
 
     if (!file)
     {
-        Serial.println(
-            "[STORAGE] Failed to open temp file"
-        );
+        ;
 
         return false;
     }
@@ -804,9 +717,7 @@ bool StorageManager::writeStatisticsSlot(
         != sizeof(record)
     )
     {
-        Serial.println(
-            "[STORAGE] Failed to write complete statistics record"
-        );
+        ;
 
         if (SD.exists(tempPath.c_str()))
 {
@@ -836,9 +747,7 @@ bool StorageManager::writeStatisticsSlot(
         )
     )
     {
-        Serial.println(
-            "[STORAGE] Written data verification FAILED"
-        );
+        ;
 
     if (SD.exists(tempPath.c_str()))
 {
@@ -860,10 +769,7 @@ bool StorageManager::writeStatisticsSlot(
 {
     if (!SD.remove(path))
     {
-        Serial.printf(
-            "[STORAGE] Failed to remove old file: %s\n",
-            path
-        );
+        ;
 
         return false;
     }
@@ -877,9 +783,7 @@ if (
     )
 )
 {
-    Serial.println(
-        "[STORAGE] Failed to activate new statistics file"
-    );
+    ;
 
     return false;
 }

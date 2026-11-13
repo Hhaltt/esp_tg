@@ -19,7 +19,7 @@ void WiFiEvent(WiFiEvent_t event)
     {
         case SYSTEM_EVENT_ETH_START:
 
-            Serial.println("[ETH] Started");
+            ;
 
             ETH.setHostname(
                 DEVICE_NAME
@@ -30,27 +30,21 @@ void WiFiEvent(WiFiEvent_t event)
 
         case SYSTEM_EVENT_ETH_CONNECTED:
 
-            Serial.println(
-                "[ETH] Link UP"
-            );
+            ;
 
             break;
 
 
         case SYSTEM_EVENT_ETH_GOT_IP:
 
-            Serial.println(
-                "[ETH] GOT_IP event"
-            );
+            ;
 
             break;
 
 
         case SYSTEM_EVENT_ETH_DISCONNECTED:
 
-            Serial.println(
-                "[ETH] Link DOWN"
-            );
+            ;
 
             break;
 
@@ -67,9 +61,7 @@ void WiFiEvent(WiFiEvent_t event)
 
 void EthernetManager::begin()
 {
-    Serial.println(
-        "[ETH] Initializing..."
-    );
+    ;
 
 
     WiFi.onEvent(
@@ -87,13 +79,9 @@ void EthernetManager::begin()
     );
 
 
-    Serial.print(
-        "[ETH] ETH.begin() = "
-    );
+    ;
 
-    Serial.println(
-        ok ? "OK" : "FAILED"
-    );
+    ;
 }
 
 
@@ -121,35 +109,23 @@ void EthernetManager::update()
     {
         connected = true;
 
-        Serial.println(
-            "\n========== ETHERNET CONNECTED =========="
-        );
+        ;
 
-        Serial.print("IP: ");
-        Serial.println(
-            ETH.localIP()
-        );
+        ;
+        ;
 
-        Serial.print("Gateway: ");
-        Serial.println(
-            ETH.gatewayIP()
-        );
+        ;
+        ;
 
-        Serial.print("DNS: ");
-        Serial.println(
-            ETH.dnsIP()
-        );
+        ;
+        ;
 
-        Serial.print("Speed: ");
-        Serial.print(
-            ETH.linkSpeed()
-        );
+        ;
+        ;
 
-        Serial.println(" Mbps");
+        ;
 
-        Serial.println(
-            "========================================\n"
-        );
+        ;
     }
 
 
@@ -161,9 +137,7 @@ void EthernetManager::update()
     {
         connected = false;
 
-        Serial.println(
-            "[ETH] Connection lost"
-        );
+        ;
     }
 }
 

@@ -14,15 +14,15 @@ ReminderManager reminderManager;
 
 bool ReminderManager::begin()
 {
-    Serial.println("[REMINDERS] Initializing...");
+    ;
 
     if (!load())
     {
-        Serial.println("[REMINDERS] Failed to load reminders");
+        ;
         return false;
     }
 
-    Serial.printf("[REMINDERS] Loaded: %u\n", (unsigned)reminderCount);
+    ;
     return true;
 }
 
@@ -46,7 +46,7 @@ void ReminderManager::update()
             // deleteReminder() shifts the array, therefore do not increment i.
             if (!deleteReminder(id))
             {
-                Serial.printf("[REMINDERS] Failed to auto-delete #%lu\n", (unsigned long)id);
+                ;
                 ++i; // Avoid retrying the same failed deletion forever in this loop.
             }
 
@@ -201,7 +201,7 @@ bool ReminderManager::checkReminder(Reminder& reminder, time_t now)
         if (reminder.type == ReminderType::ONCE &&
             calculateNextTrigger(reminder, now) == 0)
         {
-            Serial.printf("[REMINDERS] Removing expired one-time reminder #%lu\n", (unsigned long)reminder.id);
+            ;
             return true;
         }
         reminder.nextTrigger = calculateNextTrigger(reminder, now);
@@ -222,7 +222,7 @@ bool ReminderManager::checkReminder(Reminder& reminder, time_t now)
 
     if (reminder.type == ReminderType::ONCE)
     {
-        Serial.printf("[REMINDERS] One-time reminder #%lu completed\n", (unsigned long)reminder.id);
+        ;
         return true;
     }
 

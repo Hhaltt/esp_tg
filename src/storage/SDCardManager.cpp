@@ -22,7 +22,7 @@ SDCardManager sdCard;
 
 void SDCardManager::begin()
 {
-    Serial.println("[SD] Initializing...");
+    ;
 
 
     SPI.begin(
@@ -35,7 +35,7 @@ void SDCardManager::begin()
 
     if (!SD.begin(SD_CS))
     {
-        Serial.println("[SD] Card mount FAILED");
+        ;
 
         available = false;
 
@@ -48,7 +48,7 @@ void SDCardManager::begin()
 
     if (cardType == CARD_NONE)
     {
-        Serial.println("[SD] No card attached");
+        ;
 
         available = false;
 
@@ -59,34 +59,28 @@ void SDCardManager::begin()
     available = true;
 
 
-    Serial.println("[SD] Card mounted successfully");
+    ;
 
 
-    Serial.print("[SD] Size: ");
+    ;
 
-    Serial.print(
-        SD.cardSize() / (1024 * 1024)
-    );
+    ;
 
-    Serial.println(" MB");
+    ;
 
 
-    Serial.print("[SD] Used: ");
+    ;
 
-    Serial.print(
-        SD.usedBytes() / 1024
-    );
+    ;
 
-    Serial.println(" KB");
+    ;
 
 
-    Serial.print("[SD] Total: ");
+    ;
 
-    Serial.print(
-        SD.totalBytes() / (1024 * 1024)
-    );
+    ;
 
-    Serial.println(" MB");
+    ;
 }
 
 

@@ -18,7 +18,7 @@ void Statistics::begin()
 
     lastUpdate = millis();
 
-    Serial.println("[STATS] Started");
+    ;
 }
 
 
@@ -32,7 +32,7 @@ void Statistics::load(
 {
     data = loadedData;
 
-    Serial.println("[STATS] Persistent statistics loaded");
+    ;
 }
 
 
