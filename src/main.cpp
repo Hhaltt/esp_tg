@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <esp_task_wdt.h>
 #include <esp_idf_version.h>
+#include <esp_system.h>
 #include <SD.h>
 #include <ETH.h>
 #include "core/Config.h"
@@ -183,6 +184,7 @@ void setup()
 {
     Serial.begin(115200);
     delay(2000);
+    Serial.printf("[BOOT] Previous reset reason: %d\\n", (int)esp_reset_reason());
     statistics.begin();
     ethernet.begin();
     sdCard.begin();
