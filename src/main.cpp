@@ -97,7 +97,9 @@ static String statusJson()
     j += "\"totalUptime\":\"" + statistics.getTotalUptimeString() + "\",";
     j += "\"currentUptime\":\"" + statistics.getCurrentUptimeString() + "\",";
     j += "\"bootCount\":" + String(statistics.getBootCount()) + ",";
-    j += "\"resetReason\":\"" + resetReasonName() + "\",";
+    j += "\"resetReason\":\"";
+    j += resetReasonName();
+    j += "\",";
     j += "\"errors\":" + String(statistics.getErrors()) + ",";
     j += "\"chatCount\":" + String(config.getChatCount()) + ",";
     j += "\"messagesReceived\":" + String(statistics.getMessagesReceived()) + ",";
