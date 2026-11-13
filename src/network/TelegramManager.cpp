@@ -97,7 +97,14 @@ bool TelegramManager::reloadToken(){String token=config.getBotToken();token.trim
 void TelegramManager::begin(){telegramClient.setInsecure();telegramClient.setTimeout(5000);if(!reloadToken())Serial.println("[TG] Telegram token is empty");Serial.println("[TG] Telegram initialized");}
 void TelegramManager::update(){if(!ethernet.isConnected()){started=false;return;}if(!started){started=true;Serial.println("[TG] Telegram ready");sendStartupMessage();}if(millis()-lastCheck>=TELEGRAM_CHECK_INTERVAL){lastCheck=millis();checkMessages();}}
 void TelegramManager::sendStartupMessage(){if(startupMessageSent||!config.isStartupMessageEnabled())return;String message=config.getStartupMessage();message.trim();if(!message.length()||!config.getChatCount())return;bool allSent=true;for(size_t i=0;i<config.getChatCount();++i){TelegramChatConfig chat=config.getChat(i);if(!sendMessage(chat.id,message))allSent=false;}startupMessageSent=allSent;}
-void TelegramManager::checkMessages(){int count=bot.getUpdates(bot.last_message_received+1);while(count>0){for(int i=0;i<count;i++)handleMessage(i);count=bot.getUpdates(bot.last_message_received+1);}}
+void TelegramManager::checkMessages()
+{
+    // UniversalTelegramBot is configured for one message per poll. Process only
+    // that batch and return to loop() so the watchdog and other services run.
+    int count = bot.getUpdates(bot.last_message_received + 1);
+    for (int i = 0; i < count; ++i)
+        handleMessage(i);
+}
 void TelegramManager::handleMessage(int i){statistics.onTelegramMessageReceived();String chatId=bot.messages[i].chat_id;String text=bot.messages[i].text;text.trim();if(!text.length())return;if(text.startsWith("/")){statistics.onCommandReceived();handleCommand(chatId,text);return;}String reply;if(commandRouteManager.execute(text,reply)){statistics.onCommandReceived();statistics.onCommandExecuted();sendMessage(chatId,reply);}}
 void TelegramManager::handleCommand(const String& chatId,const String& command){if(command=="/start"){statistics.onCommandExecuted();sendStartMessage(chatId);return;}if(command=="/about"){statistics.onCommandExecuted();sendAbout(chatId);return;}if(command=="/ping"){statistics.onCommandExecuted();sendMessage(chatId,"🏓 Pong!");return;}if(command=="/time"){statistics.onCommandExecuted();sendMessage(chatId,"🕐 "+timeManager.getDateTimeString());return;}if(command=="/status"){statistics.onCommandExecuted();String message;message+="🤖 "+config.getDeviceName();message+="\n\n🟢 Online\n";message+="🌐 IP: "+ethernet.getIP();message+="\n🔗 Ethernet: ";message+=ethernet.isConnected()?"Online":"Offline";message+="\n⚡ "+String(ethernet.getLinkSpeed())+" Mbps\n";message+="⏱ Uptime: "+statistics.getCurrentUptimeString();sendMessage(chatId,message);return;}statistics.onCommandError();sendMessage(chatId,"❓ Невідома команда:\n"+command+"\n\nСпробуй /start");}
 void TelegramManager::sendStartMessage(const String& chatId){String message="🤖 "+config.getDeviceName()+"\n\n";message+="Я запущений і працюю 😎\n\n";message+="📊 /about - про себе\n📡 /status - статус\n🏓 /ping - перевірка\n🕐 /time - час";sendMessage(chatId,message);}
