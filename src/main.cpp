@@ -183,7 +183,6 @@ void setup()
 {
     Serial.begin(115200);
     delay(2000);
-    beginWatchdog();
     statistics.begin();
     ethernet.begin();
     sdCard.begin();
@@ -206,6 +205,10 @@ void setup()
     gpioMonitor.begin();
     ledActivity.begin();
     Serial.println("[SYSTEM] Initialization complete");
+
+    // Setup can block while Ethernet, SD, and services initialize. Start the
+    // loop watchdog only after setup has completed to avoid rebooting at boot.
+    beginWatchdog();
 }
 
 void loop()
